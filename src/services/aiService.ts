@@ -17,10 +17,10 @@ const DEFAULT_AI_CONFIG: AIServiceConfig = {
   model: 'glm-4',
 };
 
-// 兼容旧字段名
+// 兼容旧字段名（与后端默认配置保持一致）
 const GLM_API_CONFIG = {
   baseURL: 'https://open.bigmodel.cn/api/paas/v4',
-  model: 'glm-4.6',
+  model: 'glm-4',
   timeout: 15000,
   maxRetries: 3
 };

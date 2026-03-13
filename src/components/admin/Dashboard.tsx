@@ -5,15 +5,11 @@ import {
   BookOutlined,
   FolderOutlined,
   RiseOutlined,
-  LoginOutlined,
   FireOutlined,
   TeamOutlined,
-  ArrowUpOutlined,
   CalendarOutlined,
 } from '@ant-design/icons';
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -24,7 +20,6 @@ import {
   Cell,
   BarChart,
   Bar,
-  Legend,
   Area,
   AreaChart,
 } from 'recharts';
@@ -46,7 +41,6 @@ interface OverviewStats {
   todayBookmarks: number;
 }
 
-const CHART_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899', '#F97316'];
 
 const statCards = [
   { key: 'totalUsers', label: '用户总数', icon: <TeamOutlined /> },

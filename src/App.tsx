@@ -8,11 +8,11 @@ import { useAuth } from './hooks/useAuth';
 import { lightTheme, darkTheme } from './theme';
 import { BookmarkCard } from './components/BookmarkCard';
 import { BookmarkModal } from './components/BookmarkModal';
+import { AuthModal } from './components/AuthModal';
 import { DetailModal } from './components/DetailModal';
 import { CategoryModal } from './components/CategoryModal';
 import { CategoryManageModal } from './components/CategoryManageModal';
 import { ArticleModal } from './components/ArticleModal';
-import { AuthModal } from './components/AuthModal';
 import type { Bookmark, BookmarkFormData, Article, ArticleFormData, Category } from './types';
 import './App.css';
 
@@ -56,7 +56,12 @@ function App() {
   const { currentUser, isAuthenticated, logout } = useAuth();
   
   const [currentPage, setCurrentPage] = useState<PageType>('home');
-  const [showAuth, setShowAuth] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const openLoginPage = (mode: 'login' | 'register' = 'login') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  };
 
   const [bookmarkModalOpen, setBookmarkModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
@@ -92,7 +97,7 @@ function App() {
   const handleAddBookmark = () => {
     if (!isAuthenticated) {
       message.warning('请先登录后再添加收藏');
-      setShowAuth(true);
+      openLoginPage();
       return;
     }
     setEditingBookmark(null);
@@ -223,13 +228,6 @@ function App() {
     message.success('已退出登录');
   };
 
-  const handleLoginSuccess = () => {
-    setShowAuth(false);
-    console.log('Login success, calling refreshData...');
-    refreshData();
-    console.log('refreshData called');
-  };
-
   const sortMenuItems = sortOptions.map(opt => ({
     key: opt.key,
     label: opt.label,
@@ -276,7 +274,7 @@ function App() {
   const handleCategoryManage = () => {
     if (!isAuthenticated) {
       message.warning('请先登录后再管理分类');
-      setShowAuth(true);
+      openLoginPage();
       return;
     }
     setCategoryManageModalOpen(true);
@@ -369,7 +367,7 @@ function App() {
                 <Button 
                   type="primary" 
                   icon={<UserOutlined />}
-                  onClick={() => setShowAuth(true)}
+                  onClick={() => openLoginPage()}
                 >
                   登录后添加收藏
                 </Button>
@@ -467,12 +465,10 @@ function App() {
 
         <Header className="app-header">
           <div className="header-content">
-            <img 
-              src={isDark ? "/logo2.png" : "/logo.png"} 
-              alt="Logo" 
-              className="logo-img" 
-              onClick={() => setCurrentPage('home')}
-            />
+            <div className="logo-brand" onClick={() => setCurrentPage('home')}>
+              <img src="/logo3.png" alt="Mimori" className="logo-img" />
+              <span className="logo-name">Mimori</span>
+            </div>
             
             <Menu
               mode="horizontal"
@@ -524,7 +520,7 @@ function App() {
                   <Button 
                     type="primary"
                     icon={<UserOutlined />}
-                    onClick={() => setShowAuth(true)}
+                    onClick={() => openLoginPage()}
                     className="login-btn"
                   >
                     登录
@@ -624,11 +620,13 @@ function App() {
           }}
         />
 
-        <AuthModal 
-          open={showAuth} 
-          onClose={() => setShowAuth(false)}
-          onLoginSuccess={handleLoginSuccess}
+        <AuthModal
+          open={authModalOpen}
+          initialMode={authModalMode}
+          onClose={() => setAuthModalOpen(false)}
+          onSuccess={() => { refreshData(); }}
         />
+
       </Layout>
     </ConfigProvider>
   );

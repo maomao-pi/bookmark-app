@@ -140,15 +140,31 @@ export function AdminLayout({
             padding: '0 16px',
           }}
         >
-          <img
-            src={collapsed ? '/logo3.png' : '/logo.png'}
-            alt="知链方舟"
-            style={{
-              height: collapsed ? 32 : 28,
-              width: 'auto',
-              objectFit: 'contain',
-            }}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+            <img
+              src="/logo3.png"
+              alt="Mimori"
+              style={{
+                height: 24,
+                width: 24,
+                objectFit: 'contain',
+                flexShrink: 0,
+              }}
+            />
+            {!collapsed && (
+              <span style={{
+                fontSize: 24,
+                fontWeight: 700,
+                color: token.colorText,
+                letterSpacing: '0.5px',
+                whiteSpace: 'nowrap',
+                lineHeight: 1,
+                fontFamily: "'Outfit', sans-serif",
+              }}>
+                Mimori
+              </span>
+            )}
+          </div>
         </div>
         <Menu
           mode="inline"
