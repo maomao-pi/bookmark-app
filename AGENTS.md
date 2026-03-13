@@ -417,6 +417,13 @@ export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete 
 - 401 响应自动跳转到登录页
 - 敏感信息不存储在 localStorage（除 Token 外）
 
+### 7.4 管理后台会话超时
+
+- **超时时间**：管理员超过 5 分钟（300000 毫秒）未操作自动退出登录
+- **实现方式**：使用 `setTimeout` 定时器追踪用户活动，每次用户操作（点击、滚动、输入等）时重置计时器
+- **提醒机制**：超时前 30 秒弹出警告提示，提示用户"即将自动退出登录"
+- **超时处理**：清除 sessionStorage 中的管理员 Token 和信息，跳转到登录页并显示提示信息
+
 ## 八、环境配置
 
 ### 8.1 开发环境

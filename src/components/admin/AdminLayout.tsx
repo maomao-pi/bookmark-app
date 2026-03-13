@@ -1,4 +1,4 @@
-import { Layout, Menu, Avatar, Dropdown, theme, type MenuProps, Badge, Tag } from 'antd';
+import { Layout, Menu, Avatar, Dropdown, theme, type MenuProps, Badge } from 'antd';
 import {
   DashboardOutlined,
   UserOutlined,
@@ -27,7 +27,6 @@ export interface AdminLayoutProps {
   onCollapse: (collapsed: boolean) => void;
   permissions?: string[];
   isSuperAdmin?: boolean;
-  isMockMode?: boolean;
 }
 
 interface MenuItemConfig {
@@ -99,7 +98,6 @@ export function AdminLayout({
   onCollapse,
   permissions = [],
   isSuperAdmin = false,
-  isMockMode,
 }: AdminLayoutProps) {
   const { token } = theme.useToken();
 
@@ -235,9 +233,6 @@ export function AdminLayout({
                 <span style={{ fontWeight: 500 }}>
                   {adminInfo?.username || '管理员'}
                 </span>
-                {isMockMode && (
-                  <Tag color="orange" style={{ marginLeft: 8 }}>模拟</Tag>
-                )}
               </div>
             </Dropdown>
           </div>

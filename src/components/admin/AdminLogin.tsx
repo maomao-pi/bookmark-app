@@ -1,21 +1,13 @@
 import { useState } from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { UserOutlined, LockOutlined, SafetyOutlined } from '@ant-design/icons';
-import type { AdminLoginResponse } from '../../types/admin';
 
 const { Title, Text } = Typography;
 
 interface AdminLoginProps {
-  onLoginSuccess: (token: string, adminInfo: { username: string; avatar?: string; role: string; permissions?: string[] }, mockMode?: boolean) => void;
+  onLoginSuccess: (token: string, adminInfo: { username: string; avatar?: string; role: string; permissions?: string[] }) => void;
   baseUrl?: string;
 }
-
-const MOCK_ADMIN: AdminLoginResponse = {
-  token: 'mock-token-' + Date.now(),
-  username: 'admin',
-  role: 'super_admin',
-  permissions: ['dashboard', 'users', 'bookmarks', 'discover', 'categories', 'articles', 'logs', 'settings', 'admins'],
-};
 
 export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080' }: AdminLoginProps) {
   const [loading, setLoading] = useState(false);
@@ -49,20 +41,10 @@ export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080' }
         permissions,
       });
     } catch (error) {
-      message.error('无法连接到后端服务，是否使用模拟登录？');
+      message.error('用户名或密码错误');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleMockLogin = () => {
-    message.success('模拟登录成功');
-    onLoginSuccess(MOCK_ADMIN.token, {
-      username: MOCK_ADMIN.username,
-      avatar: MOCK_ADMIN.avatar,
-      role: MOCK_ADMIN.role,
-      permissions: MOCK_ADMIN.permissions,
-    }, true);
   };
 
   return (
@@ -142,17 +124,6 @@ export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080' }
           </Form.Item>
         </Form>
 
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Button type="link" onClick={handleMockLogin}>
-            使用模拟数据登录（无需后端）
-          </Button>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            默认账号: admin / admin123
-          </Text>
-        </div>
       </Card>
     </div>
   );
