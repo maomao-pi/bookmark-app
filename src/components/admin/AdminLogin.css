@@ -1,0 +1,215 @@
+/* ===== 后台登录页 ===== */
+.admin-login-page {
+  min-height: 100vh;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* 粒子画布：铺满整个登录页背景 */
+.particle-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== 主容器（左右两栏） ===== */
+.admin-login-container {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 880px;
+  min-height: 520px;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 16px 48px rgba(30, 64, 175, 0.14), 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* ===== 左侧品牌区（主题蓝纯色） ===== */
+.admin-login-brand {
+  flex: 1;
+  background: #2563eb;
+  padding: 48px 40px 36px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 左上角文字 */
+.brand-text-block {
+  position: relative;
+}
+
+.brand-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 6px;
+  letter-spacing: 3px;
+}
+
+.brand-subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+/* 中间插画 */
+.brand-illustration {
+  width: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  display: block;
+}
+
+/* 底部标签行 */
+.brand-tag-row {
+  display: flex;
+  gap: 10px;
+  z-index: 1;
+}
+
+.brand-tag {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
+}
+
+/* ===== 右侧登录卡片（纯白） ===== */
+.admin-login-card {
+  width: 380px;
+  background: #fff;
+  padding: 52px 44px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* 头部 */
+.login-card-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.login-icon-wrap {
+  width: 68px;
+  height: 68px;
+  background: #eff6ff;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+}
+
+.login-icon-img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.login-card-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.login-card-desc {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* 表单标签 */
+.admin-login-card .ant-form-item-label > label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+/* 输入框 */
+.login-input.ant-input-affix-wrapper,
+.login-input.ant-input-affix-wrapper-lg {
+  border-radius: 10px;
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  transition: all 0.2s;
+}
+
+.login-input.ant-input-affix-wrapper:hover {
+  border-color: #93c5fd;
+}
+
+.login-input.ant-input-affix-wrapper-focused,
+.login-input.ant-input-affix-wrapper:focus-within {
+  border-color: #2563eb !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+/* 登录按钮 */
+.login-submit-btn {
+  border-radius: 10px !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: 4px;
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25) !important;
+}
+
+.login-submit-btn:hover:not(:disabled) {
+  background: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.32) !important;
+}
+
+.login-submit-btn:active {
+  transform: translateY(0) !important;
+}
+
+/* 底部版权 */
+.login-footer-tip {
+  text-align: center;
+  font-size: 12px;
+  color: #cbd5e1;
+  margin: 24px 0 0;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .admin-login-container {
+    flex-direction: column;
+    width: 100%;
+    border-radius: 16px;
+  }
+
+  .admin-login-brand {
+    padding: 28px 28px 20px;
+  }
+
+  .brand-illustration {
+    display: none;
+  }
+
+  .admin-login-card {
+    width: 100%;
+    padding: 32px 28px 24px;
+  }
+}
