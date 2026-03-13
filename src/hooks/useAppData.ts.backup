@@ -1,0 +1,586 @@
+import { useState, useEffect, useCallback } from 'react';
+import type { Category, Bookmark, Article, AppData, BookmarkFormData, ArticleFormData, EnhancedBookmarkFormData, EnhancedArticleFormData } from '../types';
+
+const STORAGE_KEY = 'bookmarkAppData';
+
+function createSeedData(): AppData {
+  const now = new Date().toISOString();
+  const catNotes: Category = { id: 'cat-notes', name: '笔记', createdAt: now };
+  const catLearn: Category = { id: 'cat-learn', name: '学习', createdAt: now };
+
+  const article = (id: string, title: string, url: string, desc: string, type: Article['type'], aiGenerated = false): Article => ({
+    id,
+    title,
+    url,
+    description: desc,
+    type,
+    aiGenerated,
+    createdAt: now
+  });
+
+  const bookmark: Bookmark = {
+    id: 'bk-seed-1',
+    title: '前端学习收藏',
+    url: 'https://developer.mozilla.org/zh-CN/',
+    description: 'MDN 与前端相关文章、视频与文档',
+    categoryId: catNotes.id,
+    favicon: 'https://www.google.com/s2/favicons?domain=developer.mozilla.org&sz=64',
+    source: 'developer.mozilla.org',
+    tags: ['网页', '教程', '文档'],
+    thumbnail: '',
+    articles: [
+      article('art-1', 'JavaScript 入门教程', 'https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Guide/Introduction', 'MDN 官方 JavaScript 入门', 'article'),
+      article('art-2', 'React 核心概念', 'https://react.dev/learn', 'React 官方学习文档', 'article'),
+      article('art-3', 'CSS 布局完全指南', 'https://css-tricks.com/snippets/css/complete-guide-grid/', 'Grid 与 Flexbox 详解', 'article'),
+      article('vid-1', 'Vue 3 组合式 API 入门', 'https://www.bilibili.com/video/BV1Za4y1R7K3', 'Vue 3 入门视频', 'video'),
+      article('vid-2', 'TypeScript 从零到精通', 'https://www.youtube.com/watch?v=BwuLxPH8IDs', 'TS 系统讲解', 'video'),
+      article('doc-1', 'Node.js  API 文档', 'https://nodejs.org/docs/latest/api/', 'Node 官方 API 参考', 'document'),
+      article('doc-2', 'Vite 项目配置说明', 'https://cn.vitejs.dev/config/', 'Vite 配置项说明', 'document'),
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const bookmark2: Bookmark = {
+    id: 'bk-seed-2',
+    title: '知链方舟笔记',
+    url: 'https://example.com/notes',
+    description: '日常笔记与摘录',
+    categoryId: catNotes.id,
+    favicon: 'https://www.google.com/s2/favicons?domain=example.com&sz=64',
+    source: 'example.com',
+    tags: ['笔记', '网页'],
+    thumbnail: '',
+    articles: [
+article('art-4', '产品需求记录', 'https://example.com/note-1', '2024 Q2 需求汇总', 'article'),
+article('vid-3', '会议录屏', 'https://www.bilibili.com/video/av123456', '产品评审会议', 'video'),
+      article('doc-3', '项目规范 PDF', 'https://example.com/spec.pdf', '前端规范 v2.0', 'document'),
+    ],
+createdAt: now,
+updatedAt: now
+};
+
+  const bookmark3: Bookmark = {
+    id: 'bk-seed-3',
+    title: 'YouTube 精选',
+    url: 'https://www.youtube.com/',
+    description: '收藏的教程与演讲',
+    categoryId: catLearn.id,
+    favicon: 'https://www.google.com/s2/favicons?domain=youtube.com&sz=64',
+    source: 'youtube.com',
+    tags: ['视频', '教程'],
+    thumbnail: '',
+    articles: [
+article('vid-4', 'Web 性能优化实战', 'https://www.youtube.com/watch?v=perf1', 'Performance 专题', 'video'),
+article('vid-5', 'Rust 入门到放弃', 'https://www.youtube.com/watch?v=rust1', 'Rust 入门', 'video'),
+article('art-5', '配套文章：性能优化清单', 'https://web.dev/performance/', 'Web.dev 文章', 'article'),
+],
+createdAt: now,
+updatedAt: now
+};
+
+  return {
+    categories: [catNotes, catLearn],
+    bookmarks: [bookmark, bookmark2, bookmark3],
+    settings: { theme: 'light', sortBy: 'date', sortOrder: 'desc' }
+  };
+}
+
+const defaultData: AppData = {
+  categories: [],
+  bookmarks: [],
+  settings: {
+    theme: 'light',
+    sortBy: 'date',
+    sortOrder: 'desc'
+  }
+};
+
+function generateId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function getFaviconUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
+  } catch {
+    return '';
+  }
+}
+
+function getSourceDomain(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname;
+  } catch {
+    return '';
+  }
+}
+
+function autoExtractTags(title: string, url: string): string[] {
+  const tags: string[] = [];
+  tags.push('网页');
+  
+  const urlLower = url.toLowerCase();
+  const titleLower = title.toLowerCase();
+  
+  if (urlLower.includes('github') || urlLower.includes('gitee')) tags.push('代码');
+  if (urlLower.includes('youtube') || urlLower.includes('bilibili') || urlLower.includes('vimeo')) tags.push('视频');
+  if (urlLower.includes('douban')) tags.push('影视');
+  if (urlLower.includes('zhihu') || urlLower.includes('juejin') || urlLower.includes('segmentfault')) tags.push('文章');
+  if (urlLower.includes('music') || urlLower.includes('song')) tags.push('音乐');
+  if (urlLower.includes('doc') || urlLower.includes('pdf') || urlLower.includes('notion')) tags.push('文档');
+  if (urlLower.includes('drive') || urlLower.includes('dropbox') || urlLower.includes('icloud')) tags.push('云盘');
+  
+  if (titleLower.includes('tutorial') || titleLower.includes('教程')) tags.push('教程');
+  if (titleLower.includes('api') || titleLower.includes('document')) tags.push('文档');
+  if (titleLower.includes('news') || titleLower.includes('新闻')) tags.push('新闻');
+  
+  return [...new Set(tags)];
+}
+
+export function useAppData() {
+  const [data, setData] = useState<AppData>(defaultData);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+
+  useEffect(() => {
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        
+        const bookmarks = (parsed.bookmarks || []).map((b: any) => ({
+          ...b,
+          tags: b.tags || [],
+          source: b.source || getSourceDomain(b.url || ''),
+          thumbnail: b.thumbnail || ''
+        }));
+        
+        setData({
+          categories: parsed.categories || [],
+          bookmarks,
+          settings: parsed.settings || { theme: 'light', sortBy: 'date', sortOrder: 'desc' }
+        });
+      } catch {
+        setData(defaultData);
+      }
+    } else {
+      const seed = createSeedData();
+      setData(seed);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+    }
+  }, []);
+
+  const isDuplicate = useCallback((url: string, excludeId?: string): boolean => {
+    return data.bookmarks.some(b => b.url === url && b.id !== excludeId);
+  }, [data.bookmarks]);
+
+  const addBookmark = useCallback((bookmarkData: BookmarkFormData): Bookmark | null => {
+    if (isDuplicate(bookmarkData.url)) {
+      return null;
+  const addBookmark = useCallback((bookmarkData: EnhancedBookmarkFormData): Bookmark | null => {
+
+    const tags = bookmarkData.tags && bookmarkData.tags.length > 0
+      ? bookmarkData.tags
+      : autoExtractTags(bookmarkData.title, bookmarkData.url);
+    const source = bookmarkData.url ? getSourceDomain(bookmarkData.url) : '';
+
+    const newBookmark: Bookmark = {
+      id: generateId(),
+      title: bookmarkData.title,
+      url: bookmarkData.url,
+      description: bookmarkData.description,
+      categoryId: bookmarkData.categoryId,
+      favicon: getFaviconUrl(bookmarkData.url),
+      thumbnail: bookmarkData.thumbnail || '',
+      source,
+      tags,
+      articles: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      // AI增强字段
+      aiGenerated: bookmarkData.aiEnhanced || false,
+      aiMetadata: bookmarkData.aiEnhanced ? {
+        extractedAt: new Date().toISOString(),
+        confidence: bookmarkData.aiGeneratedDescription ? 0.85 : 0.6,
+        source: bookmarkData.aiGeneratedDescription ? 'ai' : 'hybrid'
+      } : undefined
+    setData(prev => {
+      const newData = {
+        ...prev,
+        bookmarks: [newBookmark, ...prev.bookmarks]
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+
+    return newBookmark;
+  }, [isDuplicate]);
+
+  const updateBookmark = useCallback((id: string, updates: Partial<BookmarkFormData>): Bookmark | null => {
+    let updatedBookmark: Bookmark | null = null;
+
+  const updateBookmark = useCallback((id: string, updates: Partial<EnhancedBookmarkFormData>): Bookmark | null => {
+      const index = prev.bookmarks.findIndex(b => b.id === id);
+      if (index === -1) return prev;
+
+      const existing = prev.bookmarks[index];
+      
+      if (updates.url && updates.url !== existing.url && isDuplicate(updates.url, id)) {
+        return prev;
+      }
+
+      const newTags = updates.tags !== undefined
+        ? updates.tags
+        : (updates.title || updates.url)
+          ? autoExtractTags(updates.title || existing.title, updates.url || existing.url)
+          : existing.tags;
+
+      const updated = {
+        ...existing,
+        ...updates,
+        favicon: updates.url ? getFaviconUrl(updates.url) : existing.favicon,
+        source: updates.url ? getSourceDomain(updates.url) : existing.source,
+        tags: newTags,
+        updatedAt: new Date().toISOString(),
+        // 更新AI元数据
+        aiGenerated: updates.aiEnhanced !== undefined ? updates.aiEnhanced : existing.aiGenerated,
+        aiMetadata: updates.aiEnhanced ? {
+          extractedAt: new Date().toISOString(),
+          confidence: updates.aiGeneratedDescription ? 0.85 : 0.7,
+          source: updates.aiGeneratedDescription ? 'ai' : 'hybrid'
+        } : existing.aiMetadata
+      const newData = {
+        ...prev,
+        bookmarks: [
+          updated,
+          ...prev.bookmarks.filter(b => b.id !== id)
+        ]
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+
+    return updatedBookmark;
+  }, [isDuplicate]);
+
+  const deleteBookmark = useCallback((id: string): boolean => {
+    let success = false;
+    setData(prev => {
+      const index = prev.bookmarks.findIndex(b => b.id === id);
+      if (index === -1) return prev;
+
+      success = true;
+      const newData = {
+        ...prev,
+        bookmarks: prev.bookmarks.filter(b => b.id !== id)
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+    return success;
+  }, []);
+
+  const addCategory = useCallback((name: string): Category => {
+    const newCategory: Category = {
+      id: generateId(),
+      name,
+      createdAt: new Date().toISOString()
+    };
+
+    setData(prev => {
+      const newData = {
+        ...prev,
+        categories: [...prev.categories, newCategory]
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+
+    return newCategory;
+  }, []);
+
+  const updateCategory = useCallback((id: string, name: string): Category | null => {
+    let updatedCategory: Category | null = null;
+
+    setData(prev => {
+      const index = prev.categories.findIndex(c => c.id === id);
+      if (index === -1) return prev;
+
+      updatedCategory = {
+        ...prev.categories[index],
+        name
+      };
+
+      const newData = {
+        ...prev,
+        categories: [
+          updatedCategory,
+          ...prev.categories.filter(c => c.id !== id)
+        ]
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+
+    return updatedCategory;
+  }, []);
+
+  const deleteCategory = useCallback((id: string): boolean => {
+    let success = false;
+    setData(prev => {
+      const index = prev.categories.findIndex(c => c.id === id);
+      if (index === -1) return prev;
+
+      success = true;
+      const newData = {
+        categories: prev.categories.filter(c => c.id !== id),
+        bookmarks: prev.bookmarks.map(b => 
+          b.categoryId === id ? { ...b, categoryId: null } : b
+        ),
+        settings: prev.settings
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+    return success;
+  }, []);
+
+  const addArticle = useCallback((bookmarkId: string, articleData: ArticleFormData): Article | null => {
+    let newArticle: Article | null = null;
+
+  const addArticle = useCallback((bookmarkId: string, articleData: EnhancedArticleFormData): Article | null => {
+      const bookmarkIndex = prev.bookmarks.findIndex(b => b.id === bookmarkId);
+      if (bookmarkIndex === -1) return prev;
+
+      newArticle = {
+        id: generateId(),
+        title: articleData.title,
+        url: articleData.url,
+        description: articleData.description,
+        type: articleData.type || 'link',
+        aiGenerated: articleData.aiEnhanced || articleData.aiDetectedType || false,
+        createdAt: new Date().toISOString()
+      const updatedBookmarks = [...prev.bookmarks];
+      updatedBookmarks[bookmarkIndex] = {
+        ...updatedBookmarks[bookmarkIndex],
+        articles: [...updatedBookmarks[bookmarkIndex].articles, newArticle],
+        updatedAt: new Date().toISOString()
+      };
+
+      const newData = {
+        ...prev,
+        bookmarks: updatedBookmarks
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+
+    return newArticle;
+  }, []);
+
+  const updateArticle = useCallback((bookmarkId: string, articleId: string, updates: Partial<ArticleFormData>): Article | null => {
+    let updatedArticle: Article | null = null;
+
+  const updateArticle = useCallback((bookmarkId: string, articleId: string, updates: Partial<EnhancedArticleFormData>): Article | null => {
+      const bookmarkIndex = prev.bookmarks.findIndex(b => b.id === bookmarkId);
+      if (bookmarkIndex === -1) return prev;
+
+      const articleIndex = prev.bookmarks[bookmarkIndex].articles.findIndex(a => a.id === articleId);
+      if (articleIndex === -1) return prev;
+
+      updatedArticle = {
+        ...prev.bookmarks[bookmarkIndex].articles[articleIndex],
+        ...updates,
+        aiGenerated: updates.aiEnhanced !== undefined ? updates.aiEnhanced : prev.bookmarks[bookmarkIndex].articles[articleIndex].aiGenerated
+
+      const updatedBookmarks = [...prev.bookmarks];
+      updatedBookmarks[bookmarkIndex] = {
+        ...updatedBookmarks[bookmarkIndex],
+        articles: [
+          updatedArticle,
+          ...updatedBookmarks[bookmarkIndex].articles.filter(a => a.id !== articleId)
+        ],
+        updatedAt: new Date().toISOString()
+      };
+
+      const newData = {
+        ...prev,
+        bookmarks: updatedBookmarks
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+
+    return updatedArticle;
+  }, []);
+
+  const deleteArticle = useCallback((bookmarkId: string, articleId: string): boolean => {
+    let success = false;
+
+    setData(prev => {
+      const bookmarkIndex = prev.bookmarks.findIndex(b => b.id === bookmarkId);
+      if (bookmarkIndex === -1) return prev;
+
+      const articleIndex = prev.bookmarks[bookmarkIndex].articles.findIndex(a => a.id === articleId);
+      if (articleIndex === -1) return prev;
+
+      success = true;
+      const updatedBookmarks = [...prev.bookmarks];
+      updatedBookmarks[bookmarkIndex] = {
+        ...updatedBookmarks[bookmarkIndex],
+        articles: updatedBookmarks[bookmarkIndex].articles.filter(a => a.id !== articleId),
+        updatedAt: new Date().toISOString()
+      };
+
+      const newData = {
+        ...prev,
+        bookmarks: updatedBookmarks
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+
+    return success;
+  }, []);
+
+  const updateSortSettings = useCallback((sortBy: 'date' | 'source' | 'title', sortOrder: 'asc' | 'desc') => {
+    setData(prev => {
+      const newData = {
+        ...prev,
+        settings: { ...prev.settings, sortBy, sortOrder }
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+      return newData;
+    });
+  }, []);
+
+  const getFilteredBookmarks = useCallback((): Bookmark[] => {
+    let bookmarks = [...data.bookmarks];
+
+    if (categoryFilter) {
+      bookmarks = bookmarks.filter(b => b.categoryId === categoryFilter);
+    }
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      bookmarks = bookmarks.filter(bookmark => {
+        if (bookmark.title.toLowerCase().includes(query)) return true;
+        if (bookmark.description && bookmark.description.toLowerCase().includes(query)) return true;
+        if (bookmark.url.toLowerCase().includes(query)) return true;
+        if (bookmark.tags.some(tag => tag.toLowerCase().includes(query))) return true;
+
+        if (bookmark.categoryId) {
+          const category = data.categories.find(c => c.id === bookmark.categoryId);
+          if (category && category.name.toLowerCase().includes(query)) return true;
+        }
+
+        if (bookmark.articles && bookmark.articles.length > 0) {
+          for (const article of bookmark.articles) {
+            if (article.title.toLowerCase().includes(query)) return true;
+          }
+        }
+
+        return false;
+      });
+    }
+
+    const { sortBy, sortOrder } = data.settings;
+    bookmarks.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'date':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case 'source':
+          comparison = (a.source || '').localeCompare(b.source || '');
+          break;
+        case 'title':
+          comparison = a.title.localeCompare(b.title);
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return bookmarks;
+  }, [data.bookmarks, data.categories, data.settings, categoryFilter, searchQuery]);
+
+  const getCategoryName = useCallback((categoryId: string | null): string | null => {
+    if (!categoryId) return null;
+    const category = data.categories.find(c => c.id === categoryId);
+    return category?.name || null;
+  }, [data.categories]);
+
+  const getBookmarkById = useCallback((id: string): Bookmark | undefined => {
+    return data.bookmarks.find(b => b.id === id);
+  }, [data.bookmarks]);
+
+  return {
+    categories: data.categories,
+    bookmarks: data.bookmarks,
+    settings: data.settings,
+    searchQuery,
+    categoryFilter,
+    setSearchQuery,
+    setCategoryFilter,
+    addBookmark,
+    updateBookmark,
+    deleteBookmark,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addArticle,
+    updateArticle,
+    deleteArticle,
+    getFilteredBookmarks,
+    getCategoryName,
+    getBookmarkById,
+    updateSortSettings,
+    isDuplicate,
+    // AI相关功能
+    getAIEnhancedBookmarks: useCallback(() => {
+      return data.bookmarks.filter(b => b.aiGenerated);
+    }, [data.bookmarks]),
+    getAIEnhancedArticles: useCallback((bookmarkId: string) => {
+      const bookmark = data.bookmarks.find(b => b.id === bookmarkId);
+      return bookmark?.articles.filter(a => a.aiGenerated) || [];
+    }, [data.bookmarks]),
+    getAIStatistics: useCallback(() => {
+      const totalBookmarks = data.bookmarks.length;
+      const aiBookmarks = data.bookmarks.filter(b => b.aiGenerated).length;
+      const totalArticles = data.bookmarks.reduce((sum, b) => sum + b.articles.length, 0);
+      const aiArticles = data.bookmarks.reduce((sum, b) => 
+        sum + b.articles.filter(a => a.aiGenerated).length, 0
+      );
+      
+      return {
+        totalBookmarks,
+        aiBookmarks,
+        totalArticles,
+        aiArticles,
+        aiBookmarkPercentage: totalBookmarks > 0 ? (aiBookmarks / totalBookmarks * 100).toFixed(1) : '0',
+        aiArticlePercentage: totalArticles > 0 ? (aiArticles / totalArticles * 100).toFixed(1) : '0'
+      };
+    }, [data.bookmarks]),
+    clearAICache: useCallback(() => {
+      // 清除AI缓存，调用AIService的清除方法
+      try {
+        localStorage.removeItem('ai_cache_metadata_');
+        localStorage.removeItem('ai_cache_description_');
+        localStorage.removeItem('ai_cache_tags_');
+        // 清除所有AI相关缓存
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+          if (key.startsWith('ai_cache_')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (error) {
+        console.error('清除AI缓存失败:', error);
+      }
+    }, [])
+  };
+}

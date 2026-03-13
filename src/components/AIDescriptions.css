@@ -1,0 +1,177 @@
+/* AI描述选择组件样式 */
+
+.ai-descriptions-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: #fafafa;
+}
+
+.ai-descriptions-card .ant-card-head {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #e8e8e8;
+  padding: 12px 16px;
+}
+
+.ai-descriptions-card .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.ai-description-option {
+  padding: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  background: white;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.ai-description-option:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 4px rgba(24, 144, 255, 0.1);
+}
+
+.ai-description-option.selected {
+  border-color: #1890ff;
+  background: #f6ffed;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
+}
+
+.ai-description-option.applied {
+  border-color: #52c41a;
+  background: #f6ffed;
+}
+
+.ai-description-option .ant-radio-wrapper {
+  width: 100%;
+  margin-right: 0;
+}
+
+.ai-description-option .ant-radio {
+  margin-right: 8px;
+}
+
+.ai-description-option .ant-radio-input:focus + .ant-radio-inner {
+  border-color: #1890ff;
+}
+
+/* 加载状态样式 */
+.ai-descriptions-card .generating-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.ai-descriptions-card .generating-overlay .ant-spin {
+  margin-bottom: 16px;
+}
+
+.ai-descriptions-card .generating-overlay p {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* 错误状态样式 */
+.ai-descriptions-card .ant-alert {
+  margin-bottom: 0;
+}
+
+.ai-descriptions-card .ant-alert-action {
+  margin-left: 12px;
+}
+
+/* 响应式设计 */
+@media (max-width: 576px) {
+  .ai-descriptions-card {
+    margin: 0 -8px;
+  }
+  
+  .ai-description-option {
+    padding: 8px;
+  }
+  
+  .ai-description-option .ant-radio-wrapper {
+    font-size: 12px;
+  }
+}
+
+/* 动画效果 */
+.ai-description-option {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* AI图标样式 */
+.ai-descriptions-card .anticon-robot {
+  color: #1890ff;
+  font-size: 16px;
+}
+
+.ai-descriptions-card .anticon-reload {
+  color: #666;
+  transition: color 0.3s ease;
+}
+
+.ai-descriptions-card .anticon-reload:hover {
+  color: #1890ff;
+}
+
+/* 选中状态的特殊样式 */
+.ai-description-option.selected .ant-radio-checked .ant-radio-inner {
+  background-color: #1890ff;
+  border-color: #1890ff;
+}
+
+.ai-description-option.applied .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #52c41a;
+  border-color: #52c41a;
+}
+
+/* 描述文本样式 */
+.ai-description-option .description-text {
+  line-height: 1.6;
+  color: #333;
+  word-break: break-word;
+}
+
+.ai-description-option.selected .description-text {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* 标签样式 */
+.ai-description-option .style-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.ai-description-option.selected .style-tag {
+  background: #e6f7ff;
+  color: #1890ff;
+}
+
+.ai-description-option.applied .style-tag {
+  background: #f6ffed;
+  color: #52c41a;
+}

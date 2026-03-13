@@ -1,0 +1,104 @@
+/* Auth Modal Styles */
+.auth-modal .ant-modal-content {
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+.auth-modal .ant-modal-body {
+  padding: 0 !important;
+}
+
+/* Form container - logo + form */
+.auth-modal .auth-form-container {
+  padding: 32px 40px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.auth-modal .auth-form-container .auth-logo {
+  height: 36px;
+  width: auto;
+  margin-bottom: 28px;
+  object-fit: contain;
+}
+
+.auth-modal .auth-form-container .ant-form {
+  width: 100%;
+}
+
+/* Form */
+.auth-modal .ant-form-item {
+  margin-bottom: 20px !important;
+}
+
+.auth-modal .ant-form-item:last-child {
+  margin-bottom: 0 !important;
+}
+
+.auth-modal .ant-form .ant-form-item:last-of-type {
+  margin-top: 8px !important;
+  margin-bottom: 0 !important;
+}
+
+.auth-modal .ant-form-item-label {
+  padding-bottom: 6px !important;
+}
+
+.auth-modal .ant-form-item-label > label {
+  color: var(--text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.auth-modal .ant-input-affix-wrapper,
+.auth-modal .ant-input-password {
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+}
+
+.auth-modal .ant-input-affix-wrapper .ant-input-prefix {
+  color: var(--text-muted) !important;
+  margin-right: 10px !important;
+}
+
+.auth-modal .ant-input-password .ant-input-password-icon {
+  color: var(--text-muted) !important;
+}
+
+.auth-modal .ant-btn-primary {
+  height: 34px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  margin-top: 4px !important;
+}
+
+/* Close button */
+.auth-modal .ant-modal-close {
+  top: 16px !important;
+  right: 16px !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.auth-modal .ant-modal-close-x {
+  color: var(--text-secondary) !important;
+  font-size: 16px !important;
+}
+
+.auth-modal .ant-modal-close:hover .ant-modal-close-x {
+  color: var(--text-primary) !important;
+}
+
+/* Responsive */
+@media (max-width: 520px) {
+  .auth-modal .auth-form-container {
+    padding: 24px 20px 28px;
+  }
+  
+  .auth-modal .auth-form-container .auth-logo {
+    margin-bottom: 20px;
+  }
+}
