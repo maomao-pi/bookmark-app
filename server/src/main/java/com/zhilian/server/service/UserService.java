@@ -368,4 +368,83 @@ public class UserService {
             }
         }
     }
+
+    // -------------------- 扩展：邮箱登录/注册 --------------------
+
+    public Map<String, Object> loginByEmail(String email, String password) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getEmail, email);
+        User user = userMapper.selectOne(wrapper);
+
+        if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
+            throw new BizException(ErrorCode.UNAUTHORIZED, "邮箱或密码错误");
+        }
+        if ("disabled".equals(user.getStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "账号已被禁用");
+        }
+        user.setLastLoginAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        user.setPassword(null);
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        Map<String, Object> result = new HashMap<>();
+        result.put("user", user);
+        result.put("token", token);
+        return result;
+    }
+
+    public Map<String, Object> loginByEmailCode(String email, String code, VerificationCodeService codeService) {
+        if (!codeService.verify(email, "login", code) && !codeService.verify(email, "register", code)) {
+            throw new BizException(ErrorCode.UNAUTHORIZED, "验证码无效或已过期");
+        }
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getEmail, email);
+        User user = userMapper.selectOne(wrapper);
+        if (user == null) {
+            // 自动注册
+            user = new User();
+            user.setUsername("user_" + email.split("@")[0] + "_" + System.currentTimeMillis() % 10000);
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
+            user.setRole("user");
+            user.setStatus("active");
+            user.setCreatedAt(LocalDateTime.now());
+            userMapper.insert(user);
+        } else if ("disabled".equals(user.getStatus())) {
+            throw new BizException(ErrorCode.FORBIDDEN, "账号已被禁用");
+        }
+        user.setLastLoginAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        user.setPassword(null);
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        Map<String, Object> result = new HashMap<>();
+        result.put("user", user);
+        result.put("token", token);
+        return result;
+    }
+
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new BizException(ErrorCode.UNAUTHORIZED, "原密码错误");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "新密码至少6位");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+    }
+
+    public User updateExtendedProfile(Long userId, String nickname, String bio, String avatar) {
+        User user = userMapper.selectById(userId);
+        if (user == null) throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        if (nickname != null && !nickname.isBlank()) user.setNickname(nickname);
+        if (bio != null) user.setBio(bio);
+        if (avatar != null && !avatar.isBlank()) user.setAvatar(avatar);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        user.setPassword(null);
+        return user;
+    }
 }

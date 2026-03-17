@@ -22,6 +22,8 @@ public class Article {
     private String description;
     
     private String type;  // article, video, document, link
+
+    private Integer pinned;  // 0-否, 1-是
     
     private LocalDateTime createdAt;
     

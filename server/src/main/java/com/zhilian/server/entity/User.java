@@ -19,6 +19,12 @@ public class User {
     
     private String avatar;
     
+    private String nickname;
+
+    private String bio;
+
+    private String phone;
+
     private String role;  // admin, user
     
     private String status;  // active, disabled
@@ -28,6 +34,8 @@ public class User {
     private LocalDateTime updatedAt;
     
     private LocalDateTime lastLoginAt;
+
+    private LocalDateTime deletePendingAt;
 
     @TableField(exist = false)
     private Long bookmarkCount;

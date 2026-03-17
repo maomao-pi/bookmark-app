@@ -39,6 +39,9 @@ export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete,
   // 只隐藏默认的「网页」类型，其余（包括「视频」）全部展示
   const displayTags = tags.filter(tag => tag && tag.trim() && tag !== '网页');
   const hasTags = displayTags.length > 0;
+  // 单行只展示最多 2 个标签，剩余用 +N 表示
+  const visibleTags = displayTags.slice(0, 2);
+  const hiddenCount = displayTags.length - visibleTags.length;
 
   return (
     <Card 
@@ -74,14 +77,16 @@ export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete,
             <div className="bookmark-meta">
               {categoryName && <Tag className="bookmark-category-tag">{categoryName}</Tag>}
               {hasTags ? (
-                displayTags.slice(0, 3).map((tag, index) => (
-                  <Tag key={index} className="bookmark-tag">{tag}</Tag>
-                ))
+                <>
+                  {visibleTags.map((tag, index) => (
+                    <Tag key={index} className="bookmark-tag">{tag}</Tag>
+                  ))}
+                  {hiddenCount > 0 && (
+                    <Tag className="bookmark-tag bookmark-tag-more">+{hiddenCount}</Tag>
+                  )}
+                </>
               ) : (
                 <Tag className="bookmark-type-tag" title={bookmark.url}>{domain}</Tag>
-              )}
-              {hasTags && displayTags.length > 3 && (
-                <Tag className="bookmark-tag">+{displayTags.length - 3}</Tag>
               )}
             </div>
           </div>

@@ -297,6 +297,7 @@ export function useAppData() {
       url: articleData.url,
       description: articleData.description,
       type: articleData.type || 'link',
+      pinned: articleData.pinned ?? false,
       createdAt: new Date().toISOString()
     };
 

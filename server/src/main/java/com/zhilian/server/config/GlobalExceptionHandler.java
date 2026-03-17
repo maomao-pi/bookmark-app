@@ -61,11 +61,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ApiResponse<Void> handleRuntimeException(RuntimeException ex) {
-        return ApiResponse.error(ErrorCode.BAD_REQUEST, ex.getMessage());
+        String msg = ex.getMessage();
+        if (msg != null && (msg.contains("Unknown column") || msg.contains("SQLSyntax") || msg.contains("SQLException"))) {
+            ex.printStackTrace();
+            return ApiResponse.error(ErrorCode.INTERNAL_ERROR, "系统异常，请稍后重试");
+        }
+        return ApiResponse.error(ErrorCode.BAD_REQUEST, msg != null ? msg : "请求失败");
     }
 
     @ExceptionHandler(Exception.class)
     public ApiResponse<Void> handleException(Exception ex) {
+        ex.printStackTrace(); // 便于排查：控制台可见真实异常
         return ApiResponse.error(ErrorCode.INTERNAL_ERROR, "系统异常，请稍后重试");
     }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Switch, Button, Typography, message, Select } from 'antd';
-import { SaveOutlined, ExperimentOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Switch, Button, Typography, message, Select, InputNumber, Divider } from 'antd';
+import { SaveOutlined, ExperimentOutlined, RobotOutlined, BulbOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 
 const { Title } = Typography;
@@ -30,6 +30,11 @@ export function SystemSettings({ api }: SystemSettingsProps) {
         'ai.apiKey': settings['ai.apiKey'] || '',
         'ai.baseUrl': settings['ai.baseUrl'] || 'https://open.bigmodel.cn/api/paas/v4',
         'ai.model': settings['ai.model'] || 'glm-4',
+        'recommend.internal.enabled': settings['recommend.internal.enabled'] !== 'false',
+        'recommend.external.enabled': settings['recommend.external.enabled'] === 'true',
+        'recommend.limit': parseInt(settings['recommend.limit'] || '10', 10),
+        'ai.organizeEnabled': settings['ai.organizeEnabled'] !== 'false',
+        'ai.organizeFrequencyDays': parseInt(settings['ai.organizeFrequencyDays'] || '7', 10),
       });
     } catch (error) {
       message.error('加载设置失败');
@@ -49,6 +54,11 @@ export function SystemSettings({ api }: SystemSettingsProps) {
         'ai.apiKey': values['ai.apiKey'] || '',
         'ai.baseUrl': values['ai.baseUrl'] || '',
         'ai.model': values['ai.model'] || '',
+        'recommend.internal.enabled': String(values['recommend.internal.enabled']),
+        'recommend.external.enabled': String(values['recommend.external.enabled']),
+        'recommend.limit': String(values['recommend.limit'] || 10),
+        'ai.organizeEnabled': String(values['ai.organizeEnabled']),
+        'ai.organizeFrequencyDays': String(values['ai.organizeFrequencyDays'] || 7),
       };
       await api.updateSettings(settings);
       message.success('设置已保存');
@@ -95,7 +105,7 @@ export function SystemSettings({ api }: SystemSettingsProps) {
         </Form>
       </Card>
 
-      <Card title="AI 功能配置" style={{ marginBottom: 16 }}>
+      <Card title={<span><RobotOutlined /> AI 功能配置</span>} style={{ marginBottom: 16 }}>
         <Form form={form} layout="vertical">
           <Form.Item name="ai.enabled" label="启用 AI 功能" valuePropName="checked">
             <Switch />
@@ -116,6 +126,27 @@ export function SystemSettings({ api }: SystemSettingsProps) {
           >
             测试连接
           </Button>
+          <Divider style={{ margin: '16px 0' }} />
+          <Form.Item name="ai.organizeEnabled" label="启用 AI 整理建议" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="ai.organizeFrequencyDays" label="整理建议生成频率（天）">
+            <InputNumber min={1} max={30} style={{ width: 120 }} />
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <Card title={<span><BulbOutlined /> 内容推荐配置</span>} style={{ marginBottom: 16 }}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="recommend.internal.enabled" label="启用内部推荐（基于收藏库）" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="recommend.external.enabled" label="启用外部内容推荐" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="recommend.limit" label="每次推荐数量">
+            <InputNumber min={1} max={50} style={{ width: 120 }} />
+          </Form.Item>
         </Form>
       </Card>
 

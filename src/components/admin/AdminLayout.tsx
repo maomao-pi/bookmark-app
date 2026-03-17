@@ -12,6 +12,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   BellOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import type { AdminLoginResponse } from '../../types/admin';
 
@@ -44,6 +45,7 @@ const allMenuItems: MenuItemConfig[] = [
   { key: 'categories', icon: <FolderOutlined />, label: '分类管理', permission: 'categories' },
   { key: 'articles', icon: <FileTextOutlined />, label: '内容管理', permission: 'articles' },
   { key: 'logs', icon: <AuditOutlined />, label: '操作日志', permission: 'logs' },
+  { key: 'ai-logs', icon: <RobotOutlined />, label: 'AI 分析日志', permission: 'logs' },
   { key: 'settings', icon: <SettingOutlined />, label: '系统设置', permission: 'settings' },
   { key: 'admins', icon: <TeamOutlined />, label: '权限管理', permission: 'admins' },
 ];

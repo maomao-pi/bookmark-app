@@ -25,11 +25,13 @@
 
 .bookmark-card .ant-card-body {
   padding: 16px 18px 14px;
+  height: 100%;         /* 撑满 grid 单元格高度 */
 }
 
 .bookmark-card-inner {
   display: flex;
   flex-direction: column;
+  height: 100%;
   gap: 10px;
 }
 
@@ -93,7 +95,9 @@
 .bookmark-meta {
   display: flex;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;     /* 标签强制单行 */
+  overflow: hidden;      /* 超出隐藏 */
+  align-items: center;
 }
 
 .bookmark-category-tag,
@@ -113,6 +117,7 @@
 }
 
 .bookmark-description {
+  flex: 1;               /* 撑满剩余高度，使 footer 始终贴底 */
   font-size: 0.85rem;
   color: #6b7280;
   display: -webkit-box;
@@ -120,6 +125,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   line-height: 1.5;
+  min-height: 0;
 }
 
 [data-theme="dark"] .bookmark-description {
@@ -153,7 +159,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: auto;      /* 自动推到卡片底部 */
+  padding-top: 6px;
+  flex-shrink: 0;
 }
 
 .bookmark-url {

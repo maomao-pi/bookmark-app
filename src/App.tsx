@@ -13,6 +13,8 @@ import { DetailModal } from './components/DetailModal';
 import { CategoryModal } from './components/CategoryModal';
 import { CategoryManageModal } from './components/CategoryManageModal';
 import { ArticleModal } from './components/ArticleModal';
+import { ProfileModal } from './components/ProfileModal';
+import { AiNewsSection } from './components/AiNewsSection';
 import type { Bookmark, BookmarkFormData, Article, ArticleFormData, Category } from './types';
 import './App.css';
 
@@ -77,6 +79,8 @@ function App() {
   const [articleModalOpen, setArticleModalOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [articleDefaultType, setArticleDefaultType] = useState<'article' | 'video' | 'document' | 'link'>('article');
+
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const filteredBookmarks = useMemo(() => getFilteredBookmarks(), [getFilteredBookmarks]);
   const filteredDiscoverBookmarks = useMemo(() => getFilteredDiscoverBookmarks(), [getFilteredDiscoverBookmarks]);
@@ -243,12 +247,12 @@ function App() {
     {
       key: 'profile',
       icon: <UserOutlined />,
-      label: '个人资料'
+      label: '个人设置'
     },
     {
       key: 'settings',
       icon: <SettingOutlined />,
-      label: '设置'
+      label: '系统设置'
     },
     {
       type: 'divider'
@@ -265,9 +269,11 @@ function App() {
     if (key === 'logout') {
       handleLogout();
     } else if (key === 'profile') {
-      message.info('个人资料功能开发中...');
+      setProfileModalOpen(true);
+    } else if (key === 'stats') {
+      setCurrentPage('home');
     } else if (key === 'settings') {
-      message.info('设置功能开发中...');
+      message.info('请前往管理后台配置系统设置');
     }
   };
 
@@ -281,102 +287,109 @@ function App() {
   };
 
   const renderHomeContent = () => (
-    <>
-      <div className="toolbar">
-        <div className="toolbar-left">
-          <Space wrap size={[8, 8]}>
-            <Button
-              type={categoryFilter === '' ? 'primary' : 'default'}
-              onClick={() => setCategoryFilter('')}
-              shape="round"
-            >
-              全部
-            </Button>
-            {categories.map(cat => (
+    <div className="home-layout-wrapper">
+      {/* Left: bookmarks area */}
+      <div className="home-bookmarks-col">
+        <div className="toolbar">
+          <div className="toolbar-left">
+            <Space wrap size={[8, 8]}>
               <Button
-                key={cat.id}
-                type={categoryFilter === cat.id ? 'primary' : 'default'}
-                onClick={() => setCategoryFilter(cat.id)}
+                type={categoryFilter === '' ? 'primary' : 'default'}
+                onClick={() => setCategoryFilter('')}
                 shape="round"
               >
-                {cat.name}
+                全部
               </Button>
-            ))}
-          </Space>
-          <Button
-            icon={<FolderOutlined />}
-            onClick={handleCategoryManage}
-          />
-        </div>
-        <div className="toolbar-right">
-          <Dropdown menu={{ items: sortMenuItems }} placement="bottomRight">
-            <Button icon={<SortAscendingOutlined />} className="sort-btn">
-              {currentSortLabel}
+              {categories.map(cat => (
+                <Button
+                  key={cat.id}
+                  type={categoryFilter === cat.id ? 'primary' : 'default'}
+                  onClick={() => setCategoryFilter(cat.id)}
+                  shape="round"
+                >
+                  {cat.name}
+                </Button>
+              ))}
+            </Space>
+            <Button
+              icon={<FolderOutlined />}
+              onClick={handleCategoryManage}
+            />
+          </div>
+          <div className="toolbar-right">
+            <Dropdown menu={{ items: sortMenuItems }} placement="bottomRight">
+              <Button icon={<SortAscendingOutlined />} className="sort-btn">
+                {currentSortLabel}
+              </Button>
+            </Dropdown>
+            <Input.Search
+              placeholder="搜索收藏..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ maxWidth: 240 }}
+              allowClear
+            />
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddBookmark}
+            >
+              添加收藏
             </Button>
-          </Dropdown>
-          <Input.Search
-            placeholder="搜索收藏..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ maxWidth: 240 }}
-            allowClear
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddBookmark}
-          >
-            添加收藏
-          </Button>
+          </div>
+        </div>
+        <div className="home-bookmarks-content">
+          {filteredBookmarks.length > 0 ? (
+            <div className="bookmarks-waterfall">
+              {filteredBookmarks.map(bookmark => (
+                <BookmarkCard
+                  key={bookmark.id}
+                  bookmark={bookmark}
+                  categoryName={getCategoryName(bookmark.categoryId)}
+                  onView={handleViewDetail}
+                  onEdit={handleEditBookmark}
+                  onDelete={handleDeleteBookmark}
+                />
+              ))}
+            </div>
+          ) : (
+            <Empty
+              className="empty-state"
+              description={
+                searchQuery || categoryFilter
+                  ? '没有找到匹配的收藏'
+                  : '还没有收藏'
+              }
+            >
+              {!searchQuery && !categoryFilter && (
+                isAuthenticated ? (
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddBookmark}
+                  >
+                    添加收藏
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    icon={<UserOutlined />}
+                    onClick={() => openLoginPage()}
+                  >
+                    登录后添加收藏
+                  </Button>
+                )
+              )}
+            </Empty>
+          )}
         </div>
       </div>
 
-      <Content className="app-content">
-        {filteredBookmarks.length > 0 ? (
-          <div className="bookmarks-waterfall">
-            {filteredBookmarks.map(bookmark => (
-              <BookmarkCard
-                key={bookmark.id}
-                bookmark={bookmark}
-                categoryName={getCategoryName(bookmark.categoryId)}
-                onView={handleViewDetail}
-                onEdit={handleEditBookmark}
-                onDelete={handleDeleteBookmark}
-              />
-            ))}
-          </div>
-        ) : (
-          <Empty
-            className="empty-state"
-            description={
-              searchQuery || categoryFilter
-                ? '没有找到匹配的收藏'
-                : '还没有收藏'
-            }
-          >
-            {!searchQuery && !categoryFilter && (
-              isAuthenticated ? (
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={handleAddBookmark}
-                >
-                  添加收藏
-                </Button>
-              ) : (
-                <Button 
-                  type="primary" 
-                  icon={<UserOutlined />}
-                  onClick={() => openLoginPage()}
-                >
-                  登录后添加收藏
-                </Button>
-              )
-            )}
-          </Empty>
-        )}
-      </Content>
-    </>
+      {/* Right: AI recommendation panel (fixed height, internal scroll) */}
+      <div className="home-ai-col">
+        <AiNewsSection />
+      </div>
+    </div>
   );
 
   const renderDiscoverContent = () => {
@@ -485,7 +498,7 @@ function App() {
                   key: 'discover',
                   icon: <CompassOutlined />,
                   label: '发现'
-                }
+                },
               ]}
             />
             
@@ -547,7 +560,8 @@ function App() {
           </div>
         </Header>
 
-        {currentPage === 'home' ? renderHomeContent() : renderDiscoverContent()}
+        {currentPage === 'home' && renderHomeContent()}
+        {currentPage === 'discover' && renderDiscoverContent()}
 
         <BookmarkModal
           open={bookmarkModalOpen}
@@ -579,6 +593,13 @@ function App() {
             if (currentBookmark && currentBookmark.id === bookmarkId) {
               setCurrentBookmark({ ...currentBookmark, articles });
             }
+          }}
+          onTagAdded={(bookmarkId, newTag) => {
+            if (currentBookmark && currentBookmark.id === bookmarkId) {
+              const updatedTags = [...(currentBookmark.tags || []), newTag];
+              setCurrentBookmark({ ...currentBookmark, tags: updatedTags });
+            }
+            refreshData();
           }}
         />
 
@@ -625,6 +646,22 @@ function App() {
           initialMode={authModalMode}
           onClose={() => setAuthModalOpen(false)}
           onSuccess={() => { refreshData(); }}
+        />
+
+        <ProfileModal
+          open={profileModalOpen}
+          user={currentUser ? { id: currentUser.id, username: currentUser.username, email: currentUser.email || '', avatar: currentUser.avatar, nickname: (currentUser as unknown as { nickname?: string | null }).nickname ?? null } : null}
+          onClose={() => setProfileModalOpen(false)}
+          onUpdated={(updated) => {
+            const info = localStorage.getItem('userInfo');
+            if (info) {
+              try {
+                const parsed = JSON.parse(info);
+                localStorage.setItem('userInfo', JSON.stringify({ ...parsed, ...updated }));
+                refreshData();
+              } catch { /* ignore */ }
+            }
+          }}
         />
 
       </Layout>
