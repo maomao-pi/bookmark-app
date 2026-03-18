@@ -173,13 +173,14 @@ export class AdminApi {
     return this.request<void>('POST', '/api/admin/bookmarks/batch-delete', ids);
   }
 
-  getCategories(params: { pageNum: number; pageSize: number; type?: 'user' | 'discover' }) {
+  getCategories(params: { pageNum: number; pageSize: number; type?: 'user' | 'discover'; creatorKeyword?: string }) {
     return this.request<PageData<CategoryItem>>(
       'GET',
       `/api/admin/categories${buildQuery({
         pageNum: params.pageNum,
         pageSize: params.pageSize,
         type: params.type,
+        creatorKeyword: params.creatorKeyword,
       })}`,
     );
   }
@@ -215,6 +216,7 @@ export class AdminApi {
     keyword?: string;
     categoryId?: number;
     status?: 'visible' | 'hidden';
+    creatorKeyword?: string;
   }) {
     return this.request<PageData<DiscoverItem>>(
       'GET',
@@ -224,6 +226,7 @@ export class AdminApi {
         keyword: params.keyword,
         categoryId: params.categoryId,
         status: params.status,
+        creatorKeyword: params.creatorKeyword,
       })}`,
     );
   }
@@ -267,6 +270,7 @@ export class AdminApi {
     bookmarkId?: number;
     type?: 'article' | 'video' | 'document' | 'link';
     userId?: number;
+    creatorKeyword?: string;
   }) {
     return this.request<PageData<ArticleItem>>(
       'GET',
@@ -277,6 +281,7 @@ export class AdminApi {
         bookmarkId: params.bookmarkId,
         type: params.type,
         userId: params.userId,
+        creatorKeyword: params.creatorKeyword,
       })}`,
     );
   }
@@ -287,6 +292,7 @@ export class AdminApi {
     keyword?: string;
     discoverBookmarkId?: number;
     type?: 'article' | 'video' | 'document' | 'link';
+    creatorKeyword?: string;
   }) {
     return this.request<PageData<ArticleItem>>(
       'GET',
@@ -296,6 +302,7 @@ export class AdminApi {
         keyword: params.keyword,
         discoverBookmarkId: params.discoverBookmarkId,
         type: params.type,
+        creatorKeyword: params.creatorKeyword,
       })}`,
     );
   }
@@ -355,6 +362,10 @@ export class AdminApi {
         action: params.action,
       })}`,
     );
+  }
+
+  revertLog(id: number) {
+    return this.request<void>('POST', `/api/admin/logs/${id}/revert`);
   }
 
   getAdmins(params: { pageNum: number; pageSize: number; keyword?: string; sortField?: string; sortOrder?: string }) {

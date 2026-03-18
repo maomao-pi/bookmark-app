@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Input, Tag, Typography } from 'antd';
+import { Table, Input, Tag, Typography, Button, Dropdown, Modal, message, type MenuProps } from 'antd';
+import { MoreOutlined, RollbackOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { OperationLogItem, PageData } from '../../types/admin';
 
@@ -42,7 +43,7 @@ export function OperationLogs({ api }: OperationLogsProps) {
 
   useEffect(() => {
     loadData(1);
-  }, [actionFilter]);
+  }, [loadData]);
 
   const handleTableChange = (newPagination: any) => {
     const page = newPagination.current;
@@ -51,12 +52,30 @@ export function OperationLogs({ api }: OperationLogsProps) {
     loadData(page, pageSize);
   };
 
+  const handleRevert = async (record: OperationLogItem) => {
+    if (!api) return;
+    try {
+      await api.revertLog(record.id);
+      message.success('撤回成功');
+      loadData(pagination.current);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '撤回失败');
+    }
+  };
+
   const columns = [
     {
       title: '序号',
       key: 'index',
       width: 60,
       render: (_: unknown, __: unknown, index: number) => index + 1,
+    },
+    {
+      title: '执行者',
+      dataIndex: 'operatorName',
+      key: 'operatorName',
+      width: 140,
+      render: (operatorName?: string) => operatorName || '-',
     },
     {
       title: '操作类型',
@@ -72,7 +91,13 @@ export function OperationLogs({ api }: OperationLogsProps) {
       key: 'target',
     },
     {
-      title: '操作详情',
+      title: '操作内容',
+      dataIndex: 'actionText',
+      key: 'actionText',
+      render: (_: string, record: OperationLogItem) => record.actionText || record.detail || '-',
+    },
+    {
+      title: '详情',
       dataIndex: 'detail',
       key: 'detail',
       ellipsis: true,
@@ -98,6 +123,37 @@ export function OperationLogs({ api }: OperationLogsProps) {
       dataIndex: 'createdAt',
       key: 'createdAt',
       render: (date: string) => date ? new Date(date).toLocaleString() : '-',
+    },
+    {
+      title: '操作',
+      key: 'operation',
+      width: 80,
+      render: (_: unknown, record: OperationLogItem) => {
+        const items: MenuProps['items'] = [];
+        if (record.revocable === 1 && record.reverted !== 1) {
+          items.push({
+            key: 'revert',
+            label: '撤回',
+            icon: <RollbackOutlined />,
+            onClick: () => {
+              Modal.confirm({
+                title: '确定撤回这条操作吗？',
+                okText: '确定',
+                cancelText: '取消',
+                onOk: () => handleRevert(record),
+              });
+            },
+          });
+        }
+        if (items.length === 0) {
+          return <span style={{ color: '#94a3b8' }}>-</span>;
+        }
+        return (
+          <Dropdown menu={{ items }} trigger={['click']} getPopupContainer={() => document.body}>
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        );
+      },
     },
   ];
 
@@ -127,6 +183,7 @@ export function OperationLogs({ api }: OperationLogsProps) {
           showSizeChanger: true,
           showTotal: (total) => `共 ${total} 条`,
         }}
+        scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
       />
     </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Input, Space, Modal, Typography, Popconfirm, message, Avatar, Form, Switch, Tag } from 'antd';
-import { DeleteOutlined, EyeOutlined, KeyOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Modal, Typography, message, Avatar, Form, Switch, Tag, Dropdown, type MenuProps } from 'antd';
+import { DeleteOutlined, EyeOutlined, KeyOutlined, MoreOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { AppUser, PageData } from '../../types/admin';
 
@@ -52,11 +52,10 @@ export function UserManagement({ api }: UserManagementProps) {
 
   useEffect(() => {
     loadData(1);
-  }, []);
+  }, [loadData]);
 
   const handleSearch = (value: string) => {
     setKeyword(value);
-    loadData(1);
   };
 
   const handleTableChange = (newPagination: any) => {
@@ -144,9 +143,24 @@ export function UserManagement({ api }: UserManagementProps) {
       key: 'username',
     },
     {
+      title: '姓名',
+      dataIndex: 'nickname',
+      key: 'nickname',
+      width: 120,
+      render: (nickname?: string) => nickname || '-',
+    },
+    {
+      title: '电话',
+      dataIndex: 'phone',
+      key: 'phone',
+      width: 140,
+      render: (phone?: string) => phone || '-',
+    },
+    {
       title: '邮箱',
       dataIndex: 'email',
       key: 'email',
+      ellipsis: true,
     },
     {
       title: '收藏数',
@@ -176,37 +190,42 @@ export function UserManagement({ api }: UserManagementProps) {
     {
       title: '操作',
       key: 'action',
-      width: 160,
-      render: (_: any, record: AppUser) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
-            查看
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<KeyOutlined />}
-            onClick={() => handleChangePassword(record)}
-          >
-            改密
-          </Button>
-          <Popconfirm
-            title="确定删除此用户吗？"
-            onConfirm={() => handleDelete(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+      width: 80,
+      render: (_: any, record: AppUser) => {
+        const items: MenuProps['items'] = [
+          {
+            key: 'view',
+            label: '查看',
+            icon: <EyeOutlined />,
+            onClick: () => handleViewDetail(record),
+          },
+          {
+            key: 'password',
+            label: '改密',
+            icon: <KeyOutlined />,
+            onClick: () => handleChangePassword(record),
+          },
+          {
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => {
+              Modal.confirm({
+                title: '确定删除此用户吗？',
+                okText: '确定',
+                cancelText: '取消',
+                onOk: () => handleDelete(record),
+              });
+            },
+          },
+        ];
+        return (
+          <Dropdown menu={{ items }} trigger={['click']} getPopupContainer={() => document.body}>
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        );
+      },
     },
   ];
 
@@ -217,7 +236,7 @@ export function UserManagement({ api }: UserManagementProps) {
           用户管理
         </Title>
         <Search
-          placeholder="搜索用户名或邮箱"
+          placeholder="搜索用户名/姓名/电话/邮箱"
           onSearch={handleSearch}
           style={{ width: 300 }}
           allowClear
@@ -236,6 +255,7 @@ export function UserManagement({ api }: UserManagementProps) {
           showSizeChanger: true,
           showTotal: (total) => `共 ${total} 条`,
         }}
+        scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
       />
 
@@ -255,6 +275,14 @@ export function UserManagement({ api }: UserManagementProps) {
             <div style={{ marginBottom: 16 }}>
               <Text type="secondary">邮箱：</Text>
               <Text>{selectedUser.email}</Text>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text type="secondary">姓名：</Text>
+              <Text>{selectedUser.nickname || '-'}</Text>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <Text type="secondary">电话：</Text>
+              <Text>{selectedUser.phone || '-'}</Text>
             </div>
             <div style={{ marginBottom: 16 }}>
               <Text type="secondary">收藏总数：</Text>

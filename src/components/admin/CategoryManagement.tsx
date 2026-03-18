@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Input, Space, Tag, Modal, Typography, Popconfirm, message, Form, Tabs, Switch } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, UpOutlined, DownOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Tag, Modal, Typography, message, Form, Tabs, Switch, Dropdown, type MenuProps } from 'antd';
+import { PlusOutlined, DeleteOutlined, EditOutlined, UpOutlined, DownOutlined, MoreOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { CategoryItem, PageData } from '../../types/admin';
 import './CategoryManagement.css';
 
 const { Title, Text } = Typography;
+const { Search } = Input;
 
 interface CategoryManagementProps {
   api: AdminApi | null;
@@ -16,6 +17,7 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
   const [data, setData] = useState<CategoryItem[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [activeTab, setActiveTab] = useState('user');
+  const [creatorKeyword, setCreatorKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
   const [form] = Form.useForm();
@@ -28,6 +30,7 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
         pageNum: page,
         pageSize: pagination.pageSize,
         type: activeTab as 'user' | 'discover',
+        creatorKeyword: creatorKeyword || undefined,
       });
       setData(result.records);
       setPagination({
@@ -40,11 +43,11 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
     } finally {
       setLoading(false);
     }
-  }, [api, pagination.pageSize, activeTab]);
+  }, [api, pagination.pageSize, activeTab, creatorKeyword]);
 
   useEffect(() => {
     loadData(1);
-  }, [activeTab]);
+  }, [loadData]);
 
   const handleAdd = () => {
     setEditingCategory(null);
@@ -174,6 +177,17 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
       ),
     },
     {
+      title: '创建者',
+      dataIndex: 'createdByName',
+      key: 'createdByName',
+      width: 160,
+      render: (createdByName?: string, record?: CategoryItem) => (
+        <Tag color={record?.createdByType === 'admin' ? 'gold' : 'blue'}>
+          {createdByName || '-'}
+        </Tag>
+      ),
+    },
+    {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
@@ -196,41 +210,58 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
     {
       title: '操作',
       key: 'action',
-      width: 140,
-      render: (_: any, record: CategoryItem) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确定删除此分类吗？"
-            onConfirm={() => handleDelete(record)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+      width: 80,
+      render: (_: any, record: CategoryItem) => {
+        const items: MenuProps['items'] = [
+          {
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            onClick: () => handleEdit(record),
+          },
+          {
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => {
+              Modal.confirm({
+                title: '确定删除此分类吗？',
+                okText: '确定',
+                cancelText: '取消',
+                onOk: () => handleDelete(record),
+              });
+            },
+          },
+        ];
+        return (
+          <Dropdown menu={{ items }} trigger={['click']} getPopupContainer={() => document.body}>
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        );
+      },
     },
   ];
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <Title level={4} style={{ margin: 0 }}>
           分类管理
         </Title>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          新增分类
-        </Button>
+        <Space wrap>
+          <Search
+            placeholder="按创建者筛选"
+            value={creatorKeyword}
+            onChange={(e) => setCreatorKeyword(e.target.value)}
+            onSearch={(value) => setCreatorKeyword(value)}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增分类
+          </Button>
+        </Space>
       </div>
 
       <Tabs
@@ -255,7 +286,7 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
         loading={loading}
         pagination={false}
         size="small"
-        scroll={{ x: 600 }}
+        scroll={{ x: 'max-content' }}
         rowClassName={() => 'category-table-row'}
       />
 

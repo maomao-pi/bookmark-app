@@ -146,11 +146,10 @@ export function BookmarkManagement({ api }: BookmarkManagementProps) {
 
   useEffect(() => {
     loadData(1);
-  }, []);
+  }, [loadData]);
 
   const handleSearch = (value: string) => {
     setKeyword(value);
-    loadData(1);
   };
 
   const handleTableChange = (newPagination: any) => {
@@ -408,6 +407,7 @@ export function BookmarkManagement({ api }: BookmarkManagementProps) {
           showSizeChanger: true,
           showTotal: (total) => `共 ${total} 条`,
         }}
+        scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
       />
 

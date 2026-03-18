@@ -41,8 +41,8 @@ export function useAuth() {
     checkAuth();
   }, []);
 
-  const register = useCallback(async (username: string, email: string, password: string): Promise<{ success: boolean; message: string }> => {
-    if (!username || !email || !password) {
+  const register = useCallback(async (username: string, email: string, password: string, nickname: string, phone: string): Promise<{ success: boolean; message: string }> => {
+    if (!username || !email || !password || !nickname || !phone) {
       return { success: false, message: '请填写所有必填项' };
     }
 
@@ -56,7 +56,7 @@ export function useAuth() {
     }
 
     try {
-      const result = await userApi.register({ username, email, password });
+      const result = await userApi.register({ username, email, password, nickname, phone });
       const session: UserSession = {
         id: String(result.user.id),
         username: result.user.username,

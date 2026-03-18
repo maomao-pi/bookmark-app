@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Input, Space, Tag, Modal, Typography, Popconfirm, message, Select, Form, Tabs } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Space, Tag, Modal, Typography, message, Select, Form, Tabs, Dropdown, type MenuProps } from 'antd';
+import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, MoreOutlined, PushpinFilled, PushpinOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { ArticleItem, BookmarkItem, DiscoverItem, PageData } from '../../types/admin';
 
@@ -44,6 +44,7 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
   const [keyword, setKeyword] = useState('');
   const [typeFilter, setTypeFilter] = useState<'article' | 'video' | 'document' | 'link' | undefined>();
   const [bookmarkFilter, setBookmarkFilter] = useState<number | undefined>();
+  const [creatorKeyword, setCreatorKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingArticle, setEditingArticle] = useState<ArticleItem | null>(null);
   const [form] = Form.useForm();
@@ -73,6 +74,7 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
         keyword: keyword || undefined,
         type: typeFilter,
         bookmarkId: bookmarkFilter,
+        creatorKeyword: creatorKeyword || undefined,
       });
       setData(result.records);
       setPagination(prev => ({
@@ -86,15 +88,14 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
     } finally {
       setLoading(false);
     }
-  }, [api, pagination.pageSize, keyword, typeFilter, bookmarkFilter]);
+  }, [api, pagination.pageSize, keyword, typeFilter, bookmarkFilter, creatorKeyword]);
 
   useEffect(() => {
-    loadData();
+    loadData(1);
   }, [loadData]);
 
   const handleSearch = (value: string) => {
     setKeyword(value);
-    loadData(1);
   };
 
   const handleTableChange = (newPagination: any) => {
@@ -145,6 +146,18 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
     }
   };
 
+  const handleTogglePin = async (article: ArticleItem) => {
+    if (!api) return;
+    const nextPinned = article.pinned === 1 ? 0 : 1;
+    try {
+      await api.updateUserContent(article.id, { pinned: nextPinned });
+      message.success(nextPinned === 1 ? '已置顶' : '已取消置顶');
+      loadData(pagination.current);
+    } catch {
+      message.error('置顶操作失败');
+    }
+  };
+
   const columns = [
     {
       title: '序号',
@@ -176,6 +189,13 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
       },
     },
     {
+      title: '创建者',
+      dataIndex: 'createdByName',
+      key: 'createdByName',
+      width: 140,
+      render: (value?: string) => value || '-',
+    },
+    {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
@@ -197,6 +217,15 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
       },
     },
     {
+      title: '置顶',
+      dataIndex: 'pinned',
+      key: 'pinned',
+      width: 80,
+      render: (pinned?: number) => (
+        pinned === 1 ? <Tag color="gold">置顶</Tag> : <Tag>普通</Tag>
+      ),
+    },
+    {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
@@ -205,26 +234,55 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
     {
       title: '操作',
       key: 'action',
-      width: 120,
-      render: (_: unknown, record: ArticleItem) => (
-        <Space size="small">
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确定删除此内容吗？" onConfirm={() => handleDelete(record)} okText="确定" cancelText="取消">
-            <Button type="text" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+      width: 80,
+      render: (_: unknown, record: ArticleItem) => {
+        const items: MenuProps['items'] = [
+          {
+            key: 'view',
+            label: '查看',
+            icon: <EyeOutlined />,
+            onClick: () => window.open(record.url, '_blank', 'noopener,noreferrer'),
+          },
+          {
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            onClick: () => handleEdit(record),
+          },
+          {
+            key: 'pin',
+            label: record.pinned === 1 ? '取消置顶' : '置顶',
+            icon: record.pinned === 1 ? <PushpinFilled /> : <PushpinOutlined />,
+            onClick: () => handleTogglePin(record),
+          },
+          {
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => {
+              Modal.confirm({
+                title: '确定删除此内容吗？',
+                okText: '确定',
+                cancelText: '取消',
+                onOk: () => handleDelete(record),
+              });
+            },
+          },
+        ];
+        return (
+          <Dropdown menu={{ items }} trigger={['click']} getPopupContainer={() => document.body}>
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        );
+      },
     },
   ];
 
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Space>
+        <Space wrap>
           <Search placeholder="搜索标题/描述" onSearch={handleSearch} style={{ width: 200 }} allowClear />
           <Select
             placeholder="内容类型"
@@ -249,6 +307,13 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
             optionFilterProp="children"
             options={bookmarks.map(b => ({ label: b.title, value: b.id }))}
           />
+          <Input
+            placeholder="创建者账号"
+            value={creatorKeyword}
+            onChange={(e) => setCreatorKeyword(e.target.value)}
+            style={{ width: 160 }}
+            allowClear
+          />
         </Space>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
           新增内容
@@ -267,6 +332,7 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
           showSizeChanger: true,
           showTotal: (total) => `共 ${total} 条`,
         }}
+        scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
       />
 
@@ -319,6 +385,7 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
   const [keyword, setKeyword] = useState('');
   const [typeFilter, setTypeFilter] = useState<'article' | 'video' | 'document' | 'link' | undefined>();
   const [bookmarkFilter, setBookmarkFilter] = useState<number | undefined>();
+  const [creatorKeyword, setCreatorKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingArticle, setEditingArticle] = useState<ArticleItem | null>(null);
   const [form] = Form.useForm();
@@ -348,6 +415,7 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
         keyword: keyword || undefined,
         type: typeFilter,
         discoverBookmarkId: bookmarkFilter,
+        creatorKeyword: creatorKeyword || undefined,
       });
       setData(result.records);
       setPagination(prev => ({
@@ -361,15 +429,14 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
     } finally {
       setLoading(false);
     }
-  }, [api, pagination.pageSize, keyword, typeFilter, bookmarkFilter]);
+  }, [api, pagination.pageSize, keyword, typeFilter, bookmarkFilter, creatorKeyword]);
 
   useEffect(() => {
-    loadData();
+    loadData(1);
   }, [loadData]);
 
   const handleSearch = (value: string) => {
     setKeyword(value);
-    loadData(1);
   };
 
   const handleTableChange = (newPagination: any) => {
@@ -420,6 +487,18 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
     }
   };
 
+  const handleTogglePin = async (article: ArticleItem) => {
+    if (!api) return;
+    const nextPinned = article.pinned === 1 ? 0 : 1;
+    try {
+      await api.updateDiscoverContent(article.id, { pinned: nextPinned });
+      message.success(nextPinned === 1 ? '已置顶' : '已取消置顶');
+      loadData(pagination.current);
+    } catch {
+      message.error('置顶操作失败');
+    }
+  };
+
   const columns = [
     {
       title: '序号',
@@ -451,6 +530,13 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
       },
     },
     {
+      title: '创建者',
+      dataIndex: 'createdByName',
+      key: 'createdByName',
+      width: 140,
+      render: (value?: string) => value || '-',
+    },
+    {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
@@ -472,6 +558,15 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
       },
     },
     {
+      title: '置顶',
+      dataIndex: 'pinned',
+      key: 'pinned',
+      width: 80,
+      render: (pinned?: number) => (
+        pinned === 1 ? <Tag color="gold">置顶</Tag> : <Tag>普通</Tag>
+      ),
+    },
+    {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
@@ -480,26 +575,55 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
     {
       title: '操作',
       key: 'action',
-      width: 120,
-      render: (_: unknown, record: ArticleItem) => (
-        <Space size="small">
-          <Button type="text" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确定删除此内容吗？" onConfirm={() => handleDelete(record)} okText="确定" cancelText="取消">
-            <Button type="text" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
+      width: 80,
+      render: (_: unknown, record: ArticleItem) => {
+        const items: MenuProps['items'] = [
+          {
+            key: 'view',
+            label: '查看',
+            icon: <EyeOutlined />,
+            onClick: () => window.open(record.url, '_blank', 'noopener,noreferrer'),
+          },
+          {
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            onClick: () => handleEdit(record),
+          },
+          {
+            key: 'pin',
+            label: record.pinned === 1 ? '取消置顶' : '置顶',
+            icon: record.pinned === 1 ? <PushpinFilled /> : <PushpinOutlined />,
+            onClick: () => handleTogglePin(record),
+          },
+          {
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => {
+              Modal.confirm({
+                title: '确定删除此内容吗？',
+                okText: '确定',
+                cancelText: '取消',
+                onOk: () => handleDelete(record),
+              });
+            },
+          },
+        ];
+        return (
+          <Dropdown menu={{ items }} trigger={['click']} getPopupContainer={() => document.body}>
+            <Button type="text" size="small" icon={<MoreOutlined />} />
+          </Dropdown>
+        );
+      },
     },
   ];
 
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Space>
+        <Space wrap>
           <Search placeholder="搜索标题/描述" onSearch={handleSearch} style={{ width: 200 }} allowClear />
           <Select
             placeholder="内容类型"
@@ -524,6 +648,13 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
             optionFilterProp="children"
             options={discoverBookmarks.map(b => ({ label: b.title, value: b.id }))}
           />
+          <Input
+            placeholder="创建者账号"
+            value={creatorKeyword}
+            onChange={(e) => setCreatorKeyword(e.target.value)}
+            style={{ width: 160 }}
+            allowClear
+          />
         </Space>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
           新增内容
@@ -542,6 +673,7 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
           showSizeChanger: true,
           showTotal: (total) => `共 ${total} 条`,
         }}
+        scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
       />
 

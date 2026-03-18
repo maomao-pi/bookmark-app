@@ -45,6 +45,8 @@ export interface RegisterRequest {
   username: string;
   email: string;
   password: string;
+  nickname: string;
+  phone: string;
 }
 
 export interface LoginResponse {
@@ -54,6 +56,8 @@ export interface LoginResponse {
     username: string;
     email: string;
     avatar?: string;
+    nickname?: string;
+    phone?: string;
   };
 }
 
@@ -69,6 +73,7 @@ export interface ApiBookmark {
   source?: string;
   tags?: string;
   isPublic?: boolean;
+  pinned?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -109,7 +114,7 @@ function parseTags(raw: string | undefined): string[] {
   return trimmed.split(',').map(t => t.trim()).filter(Boolean);
 }
 
-function transformBookmark(api: ApiBookmark): Bookmark {
+function transformBookmark(api: ApiBookmark): Bookmark & { pinned?: boolean } {
   return {
     id: String(api.id),
     title: api.title,
@@ -121,6 +126,7 @@ function transformBookmark(api: ApiBookmark): Bookmark {
     tags: parseTags(api.tags),
     thumbnail: api.thumbnail || '',
     articles: [],
+    pinned: api.pinned ? true : undefined,
     createdAt: api.createdAt || new Date().toISOString(),
     updatedAt: api.updatedAt || new Date().toISOString(),
   };
@@ -163,7 +169,7 @@ export const userApi = {
   },
 
   async getProfile() {
-    return request<{ id: number; username: string; email: string; avatar?: string }>('GET', '/api/user/profile');
+    return request<{ id: number; username: string; email: string; avatar?: string; nickname?: string; phone?: string }>('GET', '/api/user/profile');
   },
 
   async getBookmarks(): Promise<Bookmark[]> {

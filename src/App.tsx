@@ -79,6 +79,7 @@ function App() {
   const [articleModalOpen, setArticleModalOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [articleDefaultType, setArticleDefaultType] = useState<'article' | 'video' | 'document' | 'link'>('article');
+  const [articleSaveSignal, setArticleSaveSignal] = useState(0);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
@@ -220,6 +221,7 @@ function App() {
     
     setArticleModalOpen(false);
     setEditingArticle(null);
+    setArticleSaveSignal(prev => prev + 1);
     
     const updated = getBookmarkById(currentBookmark.id);
     if (updated) {
@@ -594,6 +596,7 @@ function App() {
               setCurrentBookmark({ ...currentBookmark, articles });
             }
           }}
+          articleSaveSignal={articleSaveSignal}
           onTagAdded={(bookmarkId, newTag) => {
             if (currentBookmark && currentBookmark.id === bookmarkId) {
               const updatedTags = [...(currentBookmark.tags || []), newTag];

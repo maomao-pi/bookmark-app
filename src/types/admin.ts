@@ -37,6 +37,8 @@ export interface AppUser {
   id: number;
   username: string;
   email: string;
+  nickname?: string;
+  phone?: string;
   password?: string;
   avatar?: string;
   role?: string;
@@ -69,6 +71,9 @@ export interface CategoryItem {
   icon?: string;
   parentId?: number;
   type: 'user' | 'discover';
+  createdById?: number;
+  createdByType?: 'user' | 'admin';
+  createdByName?: string;
   sort?: number;
   status: 'visible' | 'hidden';
   createdAt?: string;
@@ -86,6 +91,10 @@ export interface DiscoverItem {
   tags?: string;
   sort?: number;
   status: 'visible' | 'hidden';
+  pinned?: number;
+  createdById?: number;
+  createdByType?: 'user' | 'admin';
+  createdByName?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -99,18 +108,27 @@ export interface ArticleItem {
   description?: string;
   favicon?: string;
   type: 'article' | 'video' | 'document' | 'link';
+  pinned?: number;
+  createdByName?: string;
+  sourceType?: 'user' | 'discover';
   createdAt?: string;
 }
 
 export interface OperationLogItem {
   id: number;
   adminId?: number;
+  operatorName?: string;
   action: string;
+  actionText?: string;
   target?: string;
   targetId?: number;
   detail?: string;
   ip?: string;
   result: 'success' | 'failed';
+  revocable?: number;
+  reverted?: number;
+  revertParentId?: number;
+  revertedAt?: string;
   createdAt?: string;
 }
 

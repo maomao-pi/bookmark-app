@@ -1,5 +1,5 @@
-import { Modal, Button, Tag, List, message, Empty, Card, Spin, Tabs, Progress, Tooltip, Input } from 'antd';
-import { CopyOutlined, LinkOutlined, PlusOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, FileTextOutlined, VideoCameraOutlined, RobotOutlined, PlayCircleOutlined, ClockCircleOutlined, CheckCircleOutlined, ThunderboltOutlined, FolderOutlined, BookOutlined, SearchOutlined, PushpinFilled } from '@ant-design/icons';
+import { Modal, Button, Tag, message, Empty, Card, Spin, Tabs, Progress, Tooltip, Input, Dropdown } from 'antd';
+import { CopyOutlined, LinkOutlined, PlusOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, FileTextOutlined, VideoCameraOutlined, RobotOutlined, PlayCircleOutlined, ClockCircleOutlined, CheckCircleOutlined, ThunderboltOutlined, FolderOutlined, BookOutlined, SearchOutlined, PushpinFilled, PushpinOutlined, MoreOutlined } from '@ant-design/icons';
 import type { Bookmark, Article, BookmarkAnalysisResult } from '../types';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { userApi } from '../services/userApi';
@@ -16,6 +16,7 @@ interface DetailModalProps {
   onDeleteArticle: (article: Article) => void;
   onArticleUpdate: (bookmarkId: string, articles: Article[]) => void;
   onTagAdded?: (bookmarkId: string, newTag: string) => void;
+  articleSaveSignal?: number;
 }
 
 export function DetailModal({ 
@@ -28,6 +29,7 @@ export function DetailModal({
   onDeleteArticle,
   onArticleUpdate,
   onTagAdded,
+  articleSaveSignal,
 }: DetailModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiResult, setAiResult] = useState<BookmarkAnalysisResult | null>(null);
@@ -44,6 +46,12 @@ export function DetailModal({
       loadArticles();
     }
   }, [open, bookmark?.id]);
+
+  useEffect(() => {
+    if (open && bookmark && articleSaveSignal !== undefined && articleSaveSignal > 0) {
+      loadArticles();
+    }
+  }, [articleSaveSignal]);
 
   const loadArticles = useCallback(async () => {
     if (!bookmark?.id) return;
@@ -116,9 +124,38 @@ export function DetailModal({
     }
   };
 
+  const handleTogglePin = async (article: Article) => {
+    const newPinned = !article.pinned;
+    setLocalArticles(prev =>
+      prev.map(a => a.id === article.id ? { ...a, pinned: newPinned } : a)
+    );
+    try {
+      await userApi.updateArticle(bookmark!.id, article.id, { ...article, pinned: newPinned });
+    } catch {
+      setLocalArticles(prev =>
+        prev.map(a => a.id === article.id ? { ...a, pinned: article.pinned } : a)
+      );
+      message.error('操作失败，请重试');
+    }
+  };
+
   const renderArticleList = (type: string, emptyText: string) => {
     const rawItems = filteredArticles.filter(a => a.type === type);
     const items = [...rawItems].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    const getTypeIcon = () => {
+      switch (type) {
+        case 'video': return <VideoCameraOutlined />;
+        case 'document': return <FolderOutlined />;
+        default: return <FileTextOutlined />;
+      }
+    };
+    const getTypeColor = () => {
+      switch (type) {
+        case 'video': return '#EF4444';
+        case 'document': return '#10B981';
+        default: return '#3B82F6';
+      }
+    };
     return (
       <div className="content-list">
         <div className="tab-search-bar">
@@ -133,28 +170,70 @@ export function DetailModal({
           />
         </div>
         {items.length > 0 ? (
-          <List
-            dataSource={items}
-            renderItem={(article) => (
-              <List.Item
-                className={`article-item article-item--${type}${article.pinned ? ' article-item--pinned' : ''}`}
-                actions={[
-                  <Button key="edit" type="text" size="small" icon={<EditOutlined />} onClick={() => onEditArticle(article)} />,
-                  <Button key="delete" type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => onDeleteArticle(article)} />
-                ]}
+          <div className="content-card-grid">
+            {items.map((article) => (
+              <Card
+                key={article.id}
+                className={`content-card ${article.pinned ? 'content-card--pinned' : ''}`}
+                hoverable
+                onClick={() => window.open(article.url, '_blank')}
               >
-                <div className="article-item-content">
-                  <div className="article-item-title">
-                    {article.pinned && <PushpinFilled className="article-pin-icon" />}
-                    <a href={article.url} target="_blank" rel="noopener noreferrer">{article.title}</a>
+                <div className="content-card-inner">
+                  <div className="content-card-header">
+                    <div className="content-card-avatar" style={{ background: `linear-gradient(135deg, ${getTypeColor()}20 0%, ${getTypeColor()}10 100%)`, color: getTypeColor() }}>
+                      {getTypeIcon()}
+                    </div>
+                    <div className="content-card-info">
+                      <div className="content-card-title">
+                        {article.pinned && <Tag color="gold" className="article-pin-tag">置顶</Tag>}
+                        <span>{article.title}</span>
+                      </div>
+                      <div className="content-card-meta">
+                        <Tag className="content-type-tag">{type === 'video' ? '视频' : type === 'document' ? '文档' : '文章'}</Tag>
+                      </div>
+                    </div>
                   </div>
                   {article.description && (
-                    <div className="article-item-desc">{article.description}</div>
+                    <div className="content-card-desc">{article.description}</div>
                   )}
+                  <div className="content-card-footer">
+                    <div className="content-card-url" title={article.url}>{article.url}</div>
+                    <div className="content-card-actions" onClick={e => e.stopPropagation()}>
+                      <Dropdown
+                        menu={{
+                          items: [
+                            {
+                              key: 'pin',
+                              label: article.pinned ? '取消置顶' : '置顶',
+                              icon: article.pinned ? <PushpinFilled style={{ color: '#f59e0b' }} /> : <PushpinOutlined />,
+                              onClick: () => handleTogglePin(article),
+                            },
+                            {
+                              key: 'edit',
+                              label: '编辑',
+                              icon: <EditOutlined />,
+                              onClick: () => onEditArticle(article),
+                            },
+                            {
+                              key: 'delete',
+                              label: '删除',
+                              icon: <DeleteOutlined />,
+                              danger: true,
+                              onClick: () => onDeleteArticle(article),
+                            },
+                          ],
+                        }}
+                        trigger={['click']}
+                        placement="bottomRight"
+                      >
+                        <Button type="text" size="small" icon={<MoreOutlined />} />
+                      </Dropdown>
+                    </div>
+                  </div>
                 </div>
-              </List.Item>
-            )}
-          />
+              </Card>
+            ))}
+          </div>
         ) : (
           <div className="empty-content">
             <Empty description={searchKeyword ? '无匹配结果' : emptyText} image={Empty.PRESENTED_IMAGE_SIMPLE} />

@@ -49,9 +49,13 @@ public class UserService {
         Page<User> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         if (keyword != null && !keyword.isEmpty()) {
-            wrapper.like(User::getUsername, keyword)
+            wrapper.and(w -> w.like(User::getUsername, keyword)
                    .or()
-                   .like(User::getEmail, keyword);
+                   .like(User::getEmail, keyword)
+                   .or()
+                   .like(User::getNickname, keyword)
+                   .or()
+                   .like(User::getPhone, keyword));
         }
         applySort(wrapper, sortField, sortOrder);
         Page<User> result = userMapper.selectPage(page, wrapper);
@@ -90,16 +94,24 @@ public class UserService {
         return user;
     }
     
-    public Map<String, Object> registerUser(String username, String email, String password) {
+    public Map<String, Object> registerUser(String username, String email, String password, String nickname, String phone) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername, username);
         if (userMapper.selectCount(wrapper) > 0) {
             throw new BizException(ErrorCode.BAD_REQUEST, "用户名已存在");
         }
+        if (nickname == null || nickname.isBlank()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "姓名不能为空");
+        }
+        if (phone == null || phone.isBlank()) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "手机号不能为空");
+        }
         
         User user = new User();
         user.setUsername(username);
         user.setEmail(email);
+        user.setNickname(nickname.trim());
+        user.setPhone(phone.trim());
         user.setPassword(passwordEncoder.encode(password));
         user.setRole("user");
         user.setStatus("active");
@@ -172,6 +184,12 @@ public class UserService {
         if (user.getPassword() == null || user.getPassword().isBlank()) {
             throw new RuntimeException("password 必填");
         }
+        if (user.getNickname() == null || user.getNickname().isBlank()) {
+            throw new RuntimeException("nickname 必填");
+        }
+        if (user.getPhone() == null || user.getPhone().isBlank()) {
+            throw new RuntimeException("phone 必填");
+        }
 
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getUsername, user.getUsername());
@@ -206,6 +224,12 @@ public class UserService {
         }
         if (user.getEmail() != null) {
             existing.setEmail(user.getEmail());
+        }
+        if (user.getNickname() != null) {
+            existing.setNickname(user.getNickname());
+        }
+        if (user.getPhone() != null) {
+            existing.setPhone(user.getPhone());
         }
         if (user.getAvatar() != null) {
             existing.setAvatar(user.getAvatar());
@@ -400,15 +424,7 @@ public class UserService {
         wrapper.eq(User::getEmail, email);
         User user = userMapper.selectOne(wrapper);
         if (user == null) {
-            // 自动注册
-            user = new User();
-            user.setUsername("user_" + email.split("@")[0] + "_" + System.currentTimeMillis() % 10000);
-            user.setEmail(email);
-            user.setPassword(passwordEncoder.encode(java.util.UUID.randomUUID().toString()));
-            user.setRole("user");
-            user.setStatus("active");
-            user.setCreatedAt(LocalDateTime.now());
-            userMapper.insert(user);
+            throw new BizException(ErrorCode.NOT_FOUND, "该邮箱尚未注册，请先完成注册");
         } else if ("disabled".equals(user.getStatus())) {
             throw new BizException(ErrorCode.FORBIDDEN, "账号已被禁用");
         }

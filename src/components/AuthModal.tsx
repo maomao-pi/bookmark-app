@@ -108,10 +108,16 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
     }
   };
 
-  const handleRegister = async (values: { username: string; email: string; password: string }) => {
+  const handleRegister = async (values: { username: string; email: string; password: string; nickname: string; phone: string }) => {
     setLoading(true);
     try {
-      const result = await userApi.register({ username: values.username, email: values.email, password: values.password });
+      const result = await userApi.register({
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        nickname: values.nickname,
+        phone: values.phone,
+      });
       saveSession(result.user);
       message.success('注册成功，欢迎加入！');
       onSuccess();
@@ -335,6 +341,13 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
                   <Input prefix={<UserOutlined />} placeholder="请输入用户名" size="large" />
                 </Form.Item>
                 <Form.Item
+                  name="nickname"
+                  label="姓名"
+                  rules={[{ required: true, message: '请输入姓名' }]}
+                >
+                  <Input prefix={<UserOutlined />} placeholder="请输入姓名" size="large" />
+                </Form.Item>
+                <Form.Item
                   name="email"
                   label="邮箱"
                   rules={[{ required: true, message: '请输入邮箱' }, { type: 'email', message: '请输入有效邮箱' }]}
@@ -343,10 +356,10 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
                 </Form.Item>
                 <Form.Item
                   name="phone"
-                  label="手机号（选填）"
-                  rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入有效手机号' }]}
+                  label="手机号"
+                  rules={[{ required: true, message: '请输入手机号' }, { pattern: /^1[3-9]\d{9}$/, message: '请输入有效手机号' }]}
                 >
-                  <Input prefix={<MobileOutlined />} placeholder="请输入手机号（选填）" size="large" />
+                  <Input prefix={<MobileOutlined />} placeholder="请输入手机号" size="large" />
                 </Form.Item>
                 <Form.Item
                   name="password"

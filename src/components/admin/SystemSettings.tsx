@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Input, Switch, Button, Typography, message, Select, InputNumber, Divider } from 'antd';
-import { SaveOutlined, ExperimentOutlined, RobotOutlined, BulbOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Switch, Button, Typography, message, Select, InputNumber, Divider, Tabs } from 'antd';
+import { SaveOutlined, ExperimentOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 
 const { Title } = Typography;
@@ -89,8 +89,14 @@ export function SystemSettings({ api }: SystemSettingsProps) {
     <div>
       <Title level={4} style={{ marginBottom: 24 }}>系统设置</Title>
 
-      <Card title="主题配置" style={{ marginBottom: 16 }}>
-        <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical">
+        <Tabs
+          items={[
+            {
+              key: 'theme',
+              label: '内容主题配置',
+              children: (
+                <Card bordered={false}>
           <Form.Item name="theme.defaultMode" label="默认主题模式">
             <Select
               options={[
@@ -102,11 +108,14 @@ export function SystemSettings({ api }: SystemSettingsProps) {
           <Form.Item name="theme.allowUserSwitch" label="允许用户切换主题" valuePropName="checked">
             <Switch />
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card title={<span><RobotOutlined /> AI 功能配置</span>} style={{ marginBottom: 16 }}>
-        <Form form={form} layout="vertical">
+                </Card>
+              ),
+            },
+            {
+              key: 'ai',
+              label: 'AI 功能配置',
+              children: (
+                <Card bordered={false}>
           <Form.Item name="ai.enabled" label="启用 AI 功能" valuePropName="checked">
             <Switch />
           </Form.Item>
@@ -133,11 +142,14 @@ export function SystemSettings({ api }: SystemSettingsProps) {
           <Form.Item name="ai.organizeFrequencyDays" label="整理建议生成频率（天）">
             <InputNumber min={1} max={30} style={{ width: 120 }} />
           </Form.Item>
-        </Form>
-      </Card>
-
-      <Card title={<span><BulbOutlined /> 内容推荐配置</span>} style={{ marginBottom: 16 }}>
-        <Form form={form} layout="vertical">
+                </Card>
+              ),
+            },
+            {
+              key: 'recommend',
+              label: '内容推荐配置',
+              children: (
+                <Card bordered={false}>
           <Form.Item name="recommend.internal.enabled" label="启用内部推荐（基于收藏库）" valuePropName="checked">
             <Switch />
           </Form.Item>
@@ -147,8 +159,12 @@ export function SystemSettings({ api }: SystemSettingsProps) {
           <Form.Item name="recommend.limit" label="每次推荐数量">
             <InputNumber min={1} max={50} style={{ width: 120 }} />
           </Form.Item>
-        </Form>
-      </Card>
+                </Card>
+              ),
+            },
+          ]}
+        />
+      </Form>
 
       <Button
         type="primary"

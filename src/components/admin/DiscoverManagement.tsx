@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, Button, Input, Tag, Modal, Typography, Popconfirm, message, Select, Form, Row, Col, Dropdown, Switch, type MenuProps } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, ExportOutlined, MoreOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, ExportOutlined, MoreOutlined, PushpinOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { DiscoverItem, CategoryItem, PageData } from '../../types/admin';
 
@@ -28,6 +28,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
   const [keyword, setKeyword] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | undefined>();
   const [statusFilter, setStatusFilter] = useState<'visible' | 'hidden' | undefined>();
+  const [creatorKeyword, setCreatorKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<DiscoverItem | null>(null);
@@ -99,6 +100,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
         keyword: keyword || undefined,
         categoryId: categoryFilter,
         status: statusFilter,
+        creatorKeyword: creatorKeyword || undefined,
       });
       setData(result.records);
       setPagination(prev => ({
@@ -112,7 +114,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
     } finally {
       setLoading(false);
     }
-  }, [api, pagination.pageSize, keyword, categoryFilter, statusFilter]);
+  }, [api, pagination.pageSize, keyword, categoryFilter, statusFilter, creatorKeyword]);
 
   useEffect(() => {
     loadCategories();
@@ -120,11 +122,10 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
 
   useEffect(() => {
     loadData(1);
-  }, []);
+  }, [loadData]);
 
   const handleSearch = (value: string) => {
     setKeyword(value);
-    loadData(1);
   };
 
   const handleTableChange = (newPagination: any) => {
@@ -183,6 +184,19 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
       message.success(newStatus === 'visible' ? '内容已显示' : '内容已隐藏');
       loadData(pagination.current);
     } catch (error) {
+      message.error('操作失败');
+    }
+  };
+
+  const handleTogglePin = async (item: DiscoverItem, checked: boolean) => {
+    if (!api) return;
+    const newPinned = checked ? 1 : 0;
+    setData(prev => prev.map(d => d.id === item.id ? { ...d, pinned: newPinned } : d));
+    try {
+      await api.updateDiscover(item.id, { pinned: newPinned });
+      message.success(checked ? '已置顶' : '已取消置顶');
+    } catch {
+      setData(prev => prev.map(d => d.id === item.id ? { ...d, pinned: item.pinned } : d));
       message.error('操作失败');
     }
   };
@@ -294,10 +308,35 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
       },
     },
     {
+      title: '创建者',
+      dataIndex: 'createdByName',
+      key: 'createdByName',
+      width: 140,
+      render: (value?: string, record?: DiscoverItem) => (
+        <Tag color={record?.createdByType === 'admin' ? 'gold' : 'blue'}>
+          {value || '-'}
+        </Tag>
+      ),
+    },
+    {
       title: '排序',
       dataIndex: 'sort',
       key: 'sort',
       width: 80,
+    },
+    {
+      title: <span><PushpinOutlined style={{ marginRight: 4 }} />置顶</span>,
+      dataIndex: 'pinned',
+      key: 'pinned',
+      width: 90,
+      render: (pinned: number, record: DiscoverItem) => (
+        <Switch
+          checked={pinned === 1}
+          checkedChildren="置顶"
+          unCheckedChildren="普通"
+          onChange={(checked) => handleTogglePin(record, checked)}
+        />
+      ),
     },
     {
       title: '状态',
@@ -342,11 +381,22 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
             label: '删除',
             icon: <DeleteOutlined />,
             danger: true,
-            onClick: () => handleDelete(record),
+            onClick: () => {
+              Modal.confirm({
+                title: '确定删除此内容吗？',
+                okText: '确定',
+                cancelText: '取消',
+                onOk: () => handleDelete(record),
+              });
+            },
           },
         ];
         return (
-          <Dropdown menu={{ items }} trigger={['click']}>
+          <Dropdown
+            menu={{ items }}
+            trigger={['click']}
+            getPopupContainer={() => document.body}
+          >
             <Button type="text" size="small" icon={<MoreOutlined />} />
           </Dropdown>
         );
@@ -358,8 +408,8 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
     <div>
       <div style={{ marginBottom: 16 }}>
         <Title level={4} style={{ marginBottom: 16 }}>发现内容管理</Title>
-        <Row gutter={16}>
-          <Col>
+        <Row gutter={16} wrap>
+          <Col flex="none">
             <Search
               placeholder="搜索标题"
               onSearch={handleSearch}
@@ -367,7 +417,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
               allowClear
             />
           </Col>
-          <Col>
+          <Col flex="none">
             <Select
               placeholder="选择分类"
               value={categoryFilter}
@@ -377,7 +427,16 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
               allowClear
             />
           </Col>
-          <Col>
+          <Col flex="none">
+            <Input
+              placeholder="创建者账号"
+              value={creatorKeyword}
+              onChange={(e) => setCreatorKeyword(e.target.value)}
+              style={{ width: 160 }}
+              allowClear
+            />
+          </Col>
+          <Col flex="none">
             <Select
               placeholder="状态"
               value={statusFilter}
@@ -391,7 +450,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
               allowClear
             />
           </Col>
-          <Col>
+          <Col flex="none">
             <Button icon={<ExportOutlined />} onClick={handleExport}>
               导出
             </Button>
@@ -446,6 +505,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
           showSizeChanger: true,
           showTotal: (total) => `共 ${total} 条`,
         }}
+        scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
       />
 

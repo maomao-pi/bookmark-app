@@ -1,10 +1,10 @@
 import { Card, Tag, Button, Tooltip } from 'antd';
-import { EyeOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EyeOutlined, EditOutlined, DeleteOutlined, PushpinFilled } from '@ant-design/icons';
 import type { Bookmark } from '../types';
 import './BookmarkCard.css';
 
 interface BookmarkCardProps {
-  bookmark: Bookmark;
+  bookmark: Bookmark & { pinned?: boolean };
   categoryName: string | null;
   onView: (bookmark: Bookmark) => void;
   onEdit: (bookmark: Bookmark) => void;
@@ -73,7 +73,10 @@ export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete,
             </span>
           </div>
           <div className="bookmark-info">
-            <div className="bookmark-title" title={bookmark.title}>{bookmark.title}</div>
+            <div className="bookmark-title" title={bookmark.title}>
+              {bookmark.pinned && <PushpinFilled className="bookmark-pin-icon" />}
+              {bookmark.title}
+            </div>
             <div className="bookmark-meta">
               {categoryName && <Tag className="bookmark-category-tag">{categoryName}</Tag>}
               {hasTags ? (
