@@ -168,8 +168,8 @@ export function LoginPage() {
         <div className="lp-card">
           {/* 顶部 logo + 切换 */}
           <div className="lp-header">
-            <img src="/logo3.png" alt="Mimori" className="lp-logo" />
-            <h1 className="lp-title">Mimori</h1>
+            <img src="/logo3.png" alt="Linkbox" className="lp-logo" />
+            <h1 className="lp-title">Linkbox</h1>
             <p className="lp-subtitle">智能收藏，触手可及</p>
           </div>
 
@@ -253,7 +253,7 @@ export function LoginPage() {
             </Form>
           )}
 
-          <p className="lp-footer">© 2025 Mimori · 智能收藏管理平台</p>
+          <p className="lp-footer">© 2025 Linkbox · 智能收藏管理平台</p>
         </div>
       </div>
     </ConfigProvider>

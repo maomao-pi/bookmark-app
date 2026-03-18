@@ -481,8 +481,8 @@ function App() {
         <Header className="app-header">
           <div className="header-content">
             <div className="logo-brand" onClick={() => setCurrentPage('home')}>
-              <img src="/logo3.png" alt="Mimori" className="logo-img" />
-              <span className="logo-name">Mimori</span>
+              <img src="/logo3.png" alt="Linkbox" className="logo-img" />
+              <span className="logo-name">Linkbox</span>
             </div>
             
             <Menu

@@ -145,7 +145,7 @@ export function AdminLayout({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
             <img
               src="/logo3.png"
-              alt="Mimori"
+              alt="Linkbox"
               style={{
                 height: 24,
                 width: 24,
@@ -163,7 +163,7 @@ export function AdminLayout({
                 lineHeight: 1,
                 fontFamily: "'Outfit', sans-serif",
               }}>
-                Mimori
+                Linkbox
               </span>
             )}
           </div>

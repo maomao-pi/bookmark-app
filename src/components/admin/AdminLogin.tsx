@@ -192,7 +192,7 @@ export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080' }
         {/* 左侧品牌区 */}
         <div className="admin-login-brand">
           <div className="brand-text-block">
-            <h1 className="brand-title">Mimori</h1>
+            <h1 className="brand-title">Linkbox</h1>
             <p className="brand-subtitle">智能收藏，触手可及</p>
           </div>
           <BrandIllustration />
@@ -260,7 +260,7 @@ export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080' }
             </Form.Item>
           </Form>
 
-          <p className="login-footer-tip">© 2025 Mimori · Admin Panel</p>
+          <p className="login-footer-tip">© 2025 Linkbox · Admin Panel</p>
         </div>
 
       </div>

@@ -278,12 +278,12 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
             >
               <img
                 src="/logo3.png"
-                alt="Mimori"
+                alt="Linkbox"
                 className="lp-logo"
                 style={{ background: 'transparent', boxShadow: 'none', padding: 0, borderRadius: 0, marginBottom: 0 }}
               />
               <div>
-                <h1 className="lp-title" style={{ marginBottom: 2, textAlign: 'left' }}>Mimori</h1>
+                <h1 className="lp-title" style={{ marginBottom: 2, textAlign: 'left' }}>Linkbox</h1>
                 <p className="lp-subtitle" style={{ textAlign: 'left' }}>智能收藏，触手可及</p>
               </div>
             </div>
@@ -376,7 +376,7 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
               </Form>
             )}
 
-            <p className="lp-footer">© 2025 Mimori · 智能收藏管理平台</p>
+            <p className="lp-footer">© 2025 Linkbox · 智能收藏管理平台</p>
           </div>
         </div>
       </ConfigProvider>
