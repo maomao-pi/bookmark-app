@@ -20,9 +20,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * AI 联网搜索推荐咨讯服务
- * 依赖系统设置：recommend.external.enabled、recommend.limit、ai.search.*
- * 支持多模型配置：ai.search.* 用于联网搜索功能
+ * AI 推荐咨讯服务
+ * <p>
+ * 支持两种模型模式：
+ * <ul>
+ *   <li>联网搜索模式（ai.search.enabled=true）：调用联网搜索模型，返回真实可访问的链接</li>
+ *   <li>文本生成模式（默认）：调用文本生成模型，链接为 AI 推断，可能无效</li>
+ * </ul>
+ * 外部推荐总开关：recommend.external.enabled=true 时生效
  */
 @Service
 public class AiNewsService {
@@ -45,46 +50,69 @@ public class AiNewsService {
 
     /**
      * 获取 AI 推荐咨讯列表。
-     * 若 recommend.external.enabled=false 或联网搜索 AI 未配置，返回空列表。
-     * 结果缓存 1 小时。
+     * <p>
+     * 逻辑流程：
+     * 1. 检查外部推荐总开关（recommend.external.enabled）
+     * 2. 判断是否使用联网搜索模型（ai.search.enabled）
+     * 3. 读取对应模型的 apiKey / baseUrl / model 配置
+     * 4. 检查缓存有效性
+     * 5. 调用 AI API 并缓存结果，每条结果附加 modelSource 字段
      */
     public List<AiNewsItemVO> getNews() {
         Map<String, String> settings = systemSettingService.getSettings();
-        
+
+        // 外部推荐总开关（兼容新旧键名）
         String externalEnabled = settings.getOrDefault("recommend.external.enabled",
                 settings.getOrDefault("recommend.externalEnabled", "false"));
         if (!"true".equalsIgnoreCase(externalEnabled)) {
-            log.info("[AiNewsService] 外部推荐已关闭");
+            log.info("[AiNewsService] 外部推荐已关闭 (recommend.external.enabled=false)");
             return Collections.emptyList();
         }
 
-        // 优先使用 ai.search.* 配置（联网搜索模型）
-        String searchEnabled = settings.getOrDefault("ai.search.enabled", "false");
-        String apiKey = settings.getOrDefault("ai.search.apiKey", "");
-        String baseUrl = settings.getOrDefault("ai.search.baseUrl", 
-                settings.getOrDefault("ai.search.baseurl", ""));
-        String model = settings.getOrDefault("ai.search.model", "");
+        // 判断使用哪种模型
+        boolean useSearchModel = "true".equalsIgnoreCase(settings.getOrDefault("ai.search.enabled", "false"));
 
-        // 兼容旧配置：如果 ai.search.* 未配置，回退到 ai.*
-        if (apiKey.isBlank()) {
-            apiKey = settings.getOrDefault("ai.apiKey", 
-                    settings.getOrDefault("ai.api.key", ""));
-        }
-        if (baseUrl.isBlank()) {
-            baseUrl = settings.getOrDefault("ai.baseUrl", 
-                    settings.getOrDefault("ai.base.url", 
-                    settings.getOrDefault("ai.baseurl", 
-                            "https://dashscope.aliyuncs.com/compatible-mode/v1")));
-        }
-        if (model.isBlank()) {
-            model = settings.getOrDefault("ai.model", 
-                    settings.getOrDefault("ai.modelName", "qwen3-search"));
-        }
+        String apiKey;
+        String baseUrl;
+        String model;
+        final String modelType;
 
-        // 检查是否启用了联网搜索
-        if (!"true".equalsIgnoreCase(searchEnabled) && apiKey.isBlank()) {
-            log.info("[AiNewsService] 联网搜索 AI 未配置 apiKey");
-            return Collections.emptyList();
+        if (useSearchModel) {
+            // 联网搜索模型分支
+            apiKey = settings.getOrDefault("ai.search.apiKey", "");
+            baseUrl = settings.getOrDefault("ai.search.baseUrl",
+                    settings.getOrDefault("ai.search.baseurl",
+                            "https://dashscope.aliyuncs.com/compatible-mode/v1"));
+            model = settings.getOrDefault("ai.search.model", "");
+            modelType = "search";
+
+            if (apiKey.isBlank()) {
+                log.warn("[AiNewsService] 联网搜索已启用 (ai.search.enabled=true) 但未配置 apiKey，请在系统设置中配置 ai.search.apiKey");
+                return Collections.emptyList();
+            }
+            if (model.isBlank()) {
+                model = "qwen3-search";
+            }
+            log.info("[AiNewsService] 使用[联网搜索模型: {}]", model);
+        } else {
+            // 文本生成模型分支（兼容旧配置键）
+            apiKey = settings.getOrDefault("ai.text.apiKey",
+                    settings.getOrDefault("ai.apiKey",
+                            settings.getOrDefault("ai.api.key", "")));
+            baseUrl = settings.getOrDefault("ai.text.baseUrl",
+                    settings.getOrDefault("ai.baseUrl",
+                            settings.getOrDefault("ai.base.url",
+                                    "https://dashscope.aliyuncs.com/compatible-mode/v1")));
+            model = settings.getOrDefault("ai.text.model",
+                    settings.getOrDefault("ai.model",
+                            settings.getOrDefault("ai.modelName", "qwen3-plus")));
+            modelType = "text";
+
+            if (apiKey.isBlank()) {
+                log.info("[AiNewsService] 文本 AI 未配置 apiKey (ai.text.apiKey)，跳过推荐");
+                return Collections.emptyList();
+            }
+            log.info("[AiNewsService] 使用[文本生成模型: {}]", model);
         }
 
         // 检查缓存
@@ -97,41 +125,49 @@ public class AiNewsService {
         // 调用 AI 获取咨讯
         try {
             int limit = parseLimit(settings.getOrDefault("recommend.limit", "8"));
-            log.info("[AiNewsService] 开始获取 AI 咨讯: baseUrl={}, model={}, limit={}", baseUrl, model, limit);
-            
-            List<AiNewsItemVO> result = fetchNewsFromGlm(apiKey, baseUrl, model, limit);
+            log.info("[AiNewsService] 开始获取 AI 咨讯: [{}模型: {}], baseUrl={}, limit={}",
+                    useSearchModel ? "联网搜索" : "文本生成", model, baseUrl, limit);
+
+            List<AiNewsItemVO> result = fetchNewsFromAi(apiKey, baseUrl, model, limit, modelType);
 
             // 更新缓存
             cache = result;
             cacheExpireAt = now + CACHE_TTL_MS;
-            log.info("[AiNewsService] 获取到 {} 条咨讯，已缓存", result.size());
+            log.info("[AiNewsService] 获取到 {} 条咨讯，已缓存 [{}模型: {}]",
+                    result.size(), useSearchModel ? "联网搜索" : "文本生成", model);
             return result;
         } catch (Exception e) {
-            log.error("获取 AI 咨讯失败: {}", e.getMessage(), e);
+            log.error("[AiNewsService] 获取 AI 咨讯失败 [{}模型: {}]: {}", modelType, model, e.getMessage(), e);
             return Collections.emptyList();
         }
     }
 
-    /** 清除缓存（供测试或管理员手动触发使用） */
+    /** 清除缓存（管理员修改设置或用户手动刷新时调用） */
     public void clearCache() {
         cache = null;
         cacheExpireAt = 0;
+        log.info("[AiNewsService] 推荐缓存已清除");
     }
 
-    private List<AiNewsItemVO> fetchNewsFromGlm(String apiKey, String baseUrl, String model, int limit) throws Exception {
-        String prompt = "请搜索并推荐最新的 AI、科技、编程领域精选文章或资讯，要求：\n"
-                + "1. 返回 " + limit + " 条内容\n"
-                + "2. 严格按照以下 JSON 数组格式返回，不要包含任何其他文字或代码块标记：\n"
-                + "[{\"title\":\"文章标题\",\"url\":\"https://...\",\"summary\":\"一句话摘要\",\"source\":\"来源网站\"}]\n"
-                + "3. 优先选择 2025-2026 年的内容\n"
-                + "4. 涵盖 AI 大模型、前端技术、开源工具等方向\n"
-                + "5. 【重要】URL 必须是真实存在、当前可正常访问的链接，请优先使用知名网站（如 GitHub、掘金、InfoQ、CSDN、medium.com、dev.to 等）的真实文章 URL，不要生成无法访问的虚构链接";
+    private List<AiNewsItemVO> fetchNewsFromAi(String apiKey, String baseUrl, String model,
+                                                int limit, String modelType) throws Exception {
+        boolean isSearchMode = "search".equals(modelType);
+        String prompt = isSearchMode
+                ? "联网搜索并推荐 " + limit + " 条最新的 AI、科技、编程领域精选文章。\n"
+                  + "必须返回真实可访问的 URL，无效链接会导致用户投诉。\n"
+                  + "优先选择：github.com, dev.to, medium.com, react.dev, vite.dev, nextjs.org, blog.langchain.dev, huggingface.co/blog。\n"
+                  + "JSON 格式：[{\"title\":\"标题\",\"url\":\"真实URL\",\"summary\":\"摘要\",\"source\":\"来源\"}]\n"
+                  + "不要返回推测的 URL，不要返回 404 的链接。"
+                : "推荐 " + limit + " 条最新的 AI、科技、编程领域精选文章。\n"
+                  + "优先选择有效域名：github.com, dev.to, medium.com, react.dev, vite.dev\n"
+                  + "JSON 格式：[{\"title\":\"标题\",\"url\":\"URL\",\"summary\":\"摘要\",\"source\":\"来源\"}]";
 
-        String content = callGlmApi(apiKey, baseUrl, model, prompt);
-        return parseNewsJson(content, limit);
+        String content = callAiApi(apiKey, baseUrl, model, prompt, isSearchMode);
+        return parseNewsJson(content, limit, isSearchMode);
     }
 
-    private String callGlmApi(String apiKey, String baseUrl, String model, String prompt) throws Exception {
+    private String callAiApi(String apiKey, String baseUrl, String model, String prompt,
+                              boolean enableSearch) throws Exception {
         String endpoint = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + "/chat/completions";
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -143,8 +179,10 @@ public class AiNewsService {
         conn.setDoOutput(true);
 
         String escapedPrompt = objectMapper.writeValueAsString(prompt);
+        // enable_search=true 激活阿里云百炼模型的联网搜索能力（qwen3-max 等支持此参数）
+        String searchParam = enableSearch ? ",\"enable_search\":true" : "";
         String requestBody = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":"
-                + escapedPrompt + "}],\"max_tokens\":2048}";
+                + escapedPrompt + "}],\"max_tokens\":2048" + searchParam + "}";
 
         try (OutputStream os = conn.getOutputStream()) {
             os.write(requestBody.getBytes(StandardCharsets.UTF_8));
@@ -158,30 +196,31 @@ public class AiNewsService {
         }
 
         if (statusCode >= 400) {
-            log.error("GLM API 返回错误: {}", response);
-            throw new RuntimeException("GLM API 返回错误 " + statusCode);
+            log.error("[AiNewsService] AI API 返回错误 HTTP {}: {}", statusCode, response);
+            throw new RuntimeException("AI API 返回错误 " + statusCode);
         }
 
         JsonNode root = objectMapper.readTree(response);
         return root.path("choices").path(0).path("message").path("content").asText("");
     }
 
-    private List<AiNewsItemVO> parseNewsJson(String content, int limit) {
+    private List<AiNewsItemVO> parseNewsJson(String content, int limit, boolean isSearchMode) {
         List<AiNewsItemVO> result = new ArrayList<>();
         try {
-            // 尝试提取 JSON 数组（可能包裹在 markdown 代码块中）
             String json = content.trim();
             int start = json.indexOf('[');
             int end = json.lastIndexOf(']');
             if (start >= 0 && end > start) {
                 json = json.substring(start, end + 1);
             } else {
+                log.warn("[AiNewsService] AI 响应中未找到 JSON 数组，原始内容: {}", content.substring(0, Math.min(200, content.length())));
                 return result;
             }
 
             JsonNode array = objectMapper.readTree(json);
             if (!array.isArray()) return result;
 
+            List<AiNewsItemVO> tempResult = new ArrayList<>();
             for (int i = 0; i < array.size() && i < limit; i++) {
                 JsonNode item = array.get(i);
                 String title = item.path("title").asText("").trim();
@@ -192,8 +231,19 @@ public class AiNewsService {
                 if (title.isBlank() || url.isBlank()) continue;
 
                 String id = "news_" + Math.abs(url.hashCode());
-                result.add(new AiNewsItemVO(id, title, url, summary, source.isBlank() ? null : source));
+                AiNewsItemVO vo = new AiNewsItemVO(id, title, url, summary, source.isBlank() ? null : source);
+                vo.setModelSource(isSearchMode ? "search" : "text");
+                tempResult.add(vo);
             }
+
+            if (isSearchMode && !tempResult.isEmpty()) {
+                log.info("[AiNewsService] 开始验证 {} 条链接有效性...", tempResult.size());
+                List<AiNewsItemVO> validatedResult = validateAndFilterUrls(tempResult);
+                log.info("[AiNewsService] 链接验证完成: 有效 {} 条 / 原始 {} 条", validatedResult.size(), tempResult.size());
+                return validatedResult;
+            }
+
+            return tempResult;
         } catch (Exception e) {
             log.error("[AiNewsService] 解析 AI 咨讯 JSON 失败: {}", e.getMessage(), e);
         }
@@ -207,5 +257,68 @@ public class AiNewsService {
         } catch (NumberFormatException e) {
             return 8;
         }
+    }
+
+    private List<AiNewsItemVO> validateAndFilterUrls(List<AiNewsItemVO> items) {
+        List<AiNewsItemVO> validItems = new ArrayList<>();
+        int maxRedirects = 5;
+
+        for (AiNewsItemVO item : items) {
+            String url = item.getUrl();
+            boolean isValid = false;
+            int redirects = 0;
+            String currentUrl = url;
+
+            while (redirects < maxRedirects) {
+                HttpURLConnection conn = null;
+                try {
+                    URL validateUrl = new URL(currentUrl);
+                    conn = (HttpURLConnection) validateUrl.openConnection();
+                    conn.setRequestMethod("HEAD");
+                    conn.setConnectTimeout(5000);
+                    conn.setReadTimeout(5000);
+                    conn.setInstanceFollowRedirects(false);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+                    int responseCode = conn.getResponseCode();
+                    log.debug("[AiNewsService] 验证 URL {} -> HTTP {}", currentUrl, responseCode);
+
+                    if (responseCode >= 200 && responseCode < 400) {
+                        isValid = true;
+                        break;
+                    } else if (responseCode >= 300 && responseCode < 400) {
+                        String location = conn.getHeaderField("Location");
+                        if (location != null && !location.isBlank()) {
+                            if (location.startsWith("http")) {
+                                currentUrl = location;
+                            } else {
+                                URL baseUrl = new URL(currentUrl);
+                                currentUrl = new URL(baseUrl, location).toString();
+                            }
+                            redirects++;
+                            log.debug("[AiNewsService] 重定向到: {}", currentUrl);
+                            continue;
+                        }
+                    }
+                    break;
+                } catch (Exception e) {
+                    log.debug("[AiNewsService] 验证 URL {} 失败: {}", currentUrl, e.getMessage());
+                    break;
+                } finally {
+                    if (conn != null) {
+                        conn.disconnect();
+                    }
+                }
+            }
+
+            if (isValid) {
+                validItems.add(item);
+                log.info("[AiNewsService] URL 有效: {}", url);
+            } else {
+                log.warn("[AiNewsService] URL 无效已过滤: {}", url);
+            }
+        }
+
+        return validItems;
     }
 }
