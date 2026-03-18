@@ -21,7 +21,8 @@ import java.util.stream.Collectors;
 
 /**
  * AI 联网搜索推荐咨讯服务
- * 依赖系统设置：recommend.external.enabled、recommend.limit、ai.api.key、ai.model、ai.baseUrl
+ * 依赖系统设置：recommend.external.enabled、recommend.limit、ai.search.*
+ * 支持多模型配置：ai.search.* 用于联网搜索功能
  */
 @Service
 public class AiNewsService {
@@ -44,7 +45,7 @@ public class AiNewsService {
 
     /**
      * 获取 AI 推荐咨讯列表。
-     * 若 recommend.external.enabled=false 或 AI Key 未配置，返回空列表。
+     * 若 recommend.external.enabled=false 或联网搜索 AI 未配置，返回空列表。
      * 结果缓存 1 小时。
      */
     public List<AiNewsItemVO> getNews() {
@@ -53,39 +54,60 @@ public class AiNewsService {
         String externalEnabled = settings.getOrDefault("recommend.external.enabled",
                 settings.getOrDefault("recommend.externalEnabled", "false"));
         if (!"true".equalsIgnoreCase(externalEnabled)) {
+            log.info("[AiNewsService] 外部推荐已关闭");
             return Collections.emptyList();
         }
 
-        String apiKey = settings.getOrDefault("ai.api.key", 
-                settings.getOrDefault("ai.apiKey", ""));
+        // 优先使用 ai.search.* 配置（联网搜索模型）
+        String searchEnabled = settings.getOrDefault("ai.search.enabled", "false");
+        String apiKey = settings.getOrDefault("ai.search.apiKey", "");
+        String baseUrl = settings.getOrDefault("ai.search.baseUrl", 
+                settings.getOrDefault("ai.search.baseurl", ""));
+        String model = settings.getOrDefault("ai.search.model", "");
+
+        // 兼容旧配置：如果 ai.search.* 未配置，回退到 ai.*
         if (apiKey.isBlank()) {
+            apiKey = settings.getOrDefault("ai.apiKey", 
+                    settings.getOrDefault("ai.api.key", ""));
+        }
+        if (baseUrl.isBlank()) {
+            baseUrl = settings.getOrDefault("ai.baseUrl", 
+                    settings.getOrDefault("ai.base.url", 
+                    settings.getOrDefault("ai.baseurl", 
+                            "https://dashscope.aliyuncs.com/compatible-mode/v1")));
+        }
+        if (model.isBlank()) {
+            model = settings.getOrDefault("ai.model", 
+                    settings.getOrDefault("ai.modelName", "qwen3-search"));
+        }
+
+        // 检查是否启用了联网搜索
+        if (!"true".equalsIgnoreCase(searchEnabled) && apiKey.isBlank()) {
+            log.info("[AiNewsService] 联网搜索 AI 未配置 apiKey");
             return Collections.emptyList();
         }
 
         // 检查缓存
         long now = System.currentTimeMillis();
         if (cache != null && now < cacheExpireAt) {
+            log.debug("[AiNewsService] 返回缓存数据: {} 条", cache.size());
             return cache;
         }
 
-        // 调用 GLM 获取咨讯
+        // 调用 AI 获取咨讯
         try {
             int limit = parseLimit(settings.getOrDefault("recommend.limit", "8"));
-            String model = settings.getOrDefault("ai.model", 
-                    settings.getOrDefault("ai.modelName", "glm-4-flash"));
-            String baseUrl = settings.getOrDefault("ai.baseUrl", 
-                    settings.getOrDefault("ai.base.url", 
-                    settings.getOrDefault("ai.baseurl", 
-                            "https://open.bigmodel.cn/api/paas/v4")));
-
+            log.info("[AiNewsService] 开始获取 AI 咨讯: baseUrl={}, model={}, limit={}", baseUrl, model, limit);
+            
             List<AiNewsItemVO> result = fetchNewsFromGlm(apiKey, baseUrl, model, limit);
 
             // 更新缓存
             cache = result;
             cacheExpireAt = now + CACHE_TTL_MS;
+            log.info("[AiNewsService] 获取到 {} 条咨讯，已缓存", result.size());
             return result;
         } catch (Exception e) {
-            log.error("获取 AI 咨讯失败: {}", e.getMessage());
+            log.error("获取 AI 咨讯失败: {}", e.getMessage(), e);
             return Collections.emptyList();
         }
     }

@@ -327,12 +327,26 @@ public class UserApiController {
         if (userId == null) return ApiResponse.error("未登录");
 
         Map<String, String> settings = systemSettingService.getSettings();
-        String apiKey = settings.getOrDefault("ai.apiKey", "");
-        String baseUrl = settings.getOrDefault("ai.baseUrl", "https://open.bigmodel.cn/api/paas/v4");
-        String model = settings.getOrDefault("ai.model", "glm-4");
+        
+        // 优先使用 ai.text.* 配置（文本模型）
+        String textEnabled = settings.getOrDefault("ai.text.enabled", "true");
+        String apiKey = settings.getOrDefault("ai.text.apiKey", "");
+        String baseUrl = settings.getOrDefault("ai.text.baseUrl", "");
+        String model = settings.getOrDefault("ai.text.model", "");
 
-        if (apiKey == null || apiKey.isBlank()) {
-            return ApiResponse.error("未配置 AI API Key，请在系统设置中配置");
+        // 兼容旧配置：如果 ai.text.* 未配置，回退到 ai.*
+        if (apiKey.isBlank()) {
+            apiKey = settings.getOrDefault("ai.apiKey", "");
+        }
+        if (baseUrl.isBlank()) {
+            baseUrl = settings.getOrDefault("ai.baseUrl", "https://dashscope.aliyuncs.com/compatible-mode/v1");
+        }
+        if (model.isBlank()) {
+            model = settings.getOrDefault("ai.model", "qwen3-plus");
+        }
+
+        if (!"true".equalsIgnoreCase(textEnabled)) {
+            return ApiResponse.error("文本 AI 功能已关闭");
         }
 
         Bookmark bookmark = bookmarkService.getBookmarkById(bookmarkId);
@@ -512,9 +526,24 @@ public class UserApiController {
             debug.put("settings", settings);
             debug.put("externalEnabled", settings.getOrDefault("recommend.external.enabled", 
                 settings.getOrDefault("recommend.externalEnabled", "false")));
-            debug.put("apiKeyPresent", !settings.getOrDefault("ai.apiKey", "").isBlank());
-            debug.put("model", settings.getOrDefault("ai.model", ""));
-            debug.put("baseUrl", settings.getOrDefault("ai.baseUrl", ""));
+            
+            // 文本模型配置
+            debug.put("textEnabled", settings.getOrDefault("ai.text.enabled", "true"));
+            debug.put("textApiKeyPresent", !settings.getOrDefault("ai.text.apiKey", "").isBlank());
+            debug.put("textModel", settings.getOrDefault("ai.text.model", ""));
+            debug.put("textBaseUrl", settings.getOrDefault("ai.text.baseUrl", ""));
+            
+            // 联网搜索模型配置
+            debug.put("searchEnabled", settings.getOrDefault("ai.search.enabled", "false"));
+            debug.put("searchApiKeyPresent", !settings.getOrDefault("ai.search.apiKey", "").isBlank());
+            debug.put("searchModel", settings.getOrDefault("ai.search.model", ""));
+            debug.put("searchBaseUrl", settings.getOrDefault("ai.search.baseUrl", ""));
+            
+            // 兼容旧配置
+            debug.put("legacyApiKeyPresent", !settings.getOrDefault("ai.apiKey", "").isBlank());
+            debug.put("legacyModel", settings.getOrDefault("ai.model", ""));
+            debug.put("legacyBaseUrl", settings.getOrDefault("ai.baseUrl", ""));
+            
             debug.put("limit", settings.getOrDefault("recommend.limit", ""));
             return ApiResponse.success(debug);
         } catch (Exception e) {
