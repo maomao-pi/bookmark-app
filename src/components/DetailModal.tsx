@@ -1,4 +1,4 @@
-import { Modal, Button, Tag, message, Empty, Card, Spin, Tabs, Progress, Tooltip, Input, Dropdown } from 'antd';
+import { Modal, Button, Tag, message, Empty, Card, Spin, Tabs, Progress, Tooltip, Input, Dropdown, List } from 'antd';
 import { CopyOutlined, LinkOutlined, PlusOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, FileTextOutlined, VideoCameraOutlined, RobotOutlined, PlayCircleOutlined, ClockCircleOutlined, CheckCircleOutlined, ThunderboltOutlined, FolderOutlined, BookOutlined, SearchOutlined, PushpinFilled, PushpinOutlined, MoreOutlined } from '@ant-design/icons';
 import type { Bookmark, Article, BookmarkAnalysisResult } from '../types';
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -170,70 +170,70 @@ export function DetailModal({
           />
         </div>
         {items.length > 0 ? (
-          <div className="content-card-grid">
-            {items.map((article) => (
-              <Card
-                key={article.id}
-                className={`content-card ${article.pinned ? 'content-card--pinned' : ''}`}
-                hoverable
-                onClick={() => window.open(article.url, '_blank')}
+          <List
+            className="content-list-view"
+            itemLayout="horizontal"
+            dataSource={items}
+            renderItem={(article) => (
+              <List.Item
+                className={`content-list-item ${article.pinned ? 'content-list-item--pinned' : ''}`}
+                actions={[
+                  <Dropdown
+                    key="more"
+                    menu={{
+                      items: [
+                        {
+                          key: 'pin',
+                          label: article.pinned ? '取消置顶' : '置顶',
+                          icon: article.pinned ? <PushpinFilled style={{ color: '#f59e0b' }} /> : <PushpinOutlined />,
+                          onClick: () => handleTogglePin(article),
+                        },
+                        {
+                          key: 'edit',
+                          label: '编辑',
+                          icon: <EditOutlined />,
+                          onClick: () => onEditArticle(article),
+                        },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: <DeleteOutlined />,
+                          danger: true,
+                          onClick: () => onDeleteArticle(article),
+                        },
+                      ],
+                    }}
+                    trigger={['click']}
+                    placement="bottomRight"
+                  >
+                    <Button type="text" size="small" icon={<MoreOutlined />} />
+                  </Dropdown>
+                ]}
               >
-                <div className="content-card-inner">
-                  <div className="content-card-header">
-                    <div className="content-card-avatar" style={{ background: `linear-gradient(135deg, ${getTypeColor()}20 0%, ${getTypeColor()}10 100%)`, color: getTypeColor() }}>
+                <List.Item.Meta
+                  avatar={
+                    <div className="content-list-avatar" style={{ background: `linear-gradient(135deg, ${getTypeColor()}20 0%, ${getTypeColor()}10 100%)`, color: getTypeColor() }}>
                       {getTypeIcon()}
                     </div>
-                    <div className="content-card-info">
-                      <div className="content-card-title">
-                        {article.pinned && <Tag color="gold" className="article-pin-tag">置顶</Tag>}
-                        <span>{article.title}</span>
-                      </div>
-                      <div className="content-card-meta">
-                        <Tag className="content-type-tag">{type === 'video' ? '视频' : type === 'document' ? '文档' : '文章'}</Tag>
-                      </div>
+                  }
+                  title={
+                    <div className="content-list-title">
+                      {article.pinned && <Tag color="gold" className="article-pin-tag">置顶</Tag>}
+                      <a href={article.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>
+                        {article.title}
+                      </a>
                     </div>
-                  </div>
-                  {article.description && (
-                    <div className="content-card-desc">{article.description}</div>
-                  )}
-                  <div className="content-card-footer">
-                    <div className="content-card-url" title={article.url}>{article.url}</div>
-                    <div className="content-card-actions" onClick={e => e.stopPropagation()}>
-                      <Dropdown
-                        menu={{
-                          items: [
-                            {
-                              key: 'pin',
-                              label: article.pinned ? '取消置顶' : '置顶',
-                              icon: article.pinned ? <PushpinFilled style={{ color: '#f59e0b' }} /> : <PushpinOutlined />,
-                              onClick: () => handleTogglePin(article),
-                            },
-                            {
-                              key: 'edit',
-                              label: '编辑',
-                              icon: <EditOutlined />,
-                              onClick: () => onEditArticle(article),
-                            },
-                            {
-                              key: 'delete',
-                              label: '删除',
-                              icon: <DeleteOutlined />,
-                              danger: true,
-                              onClick: () => onDeleteArticle(article),
-                            },
-                          ],
-                        }}
-                        trigger={['click']}
-                        placement="bottomRight"
-                      >
-                        <Button type="text" size="small" icon={<MoreOutlined />} />
-                      </Dropdown>
+                  }
+                  description={
+                    <div className="content-list-desc">
+                      {article.description && <span>{article.description}</span>}
+                      <span className="content-list-url">{article.url}</span>
                     </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                  }
+                />
+              </List.Item>
+            )}
+          />
         ) : (
           <div className="empty-content">
             <Empty description={searchKeyword ? '无匹配结果' : emptyText} image={Empty.PRESENTED_IMAGE_SIMPLE} />
