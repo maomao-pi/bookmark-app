@@ -1,0 +1,11 @@
+.category-table-row td {
+  vertical-align: middle;
+}
+
+.category-table-row .ant-table-cell {
+  padding: 8px 12px !important;
+}
+
+.category-table-row:hover td {
+  background: var(--ant-color-fill-quaternary, #fafafa) !important;
+}

@@ -24,6 +24,20 @@ public class OperationLog {
     private String ip;
     
     private String result;  // success, failed
+
+    private Integer revocable;
+
+    private Integer reverted;
+
+    private Long revertParentId;
+
+    private LocalDateTime revertedAt;
     
     private LocalDateTime createdAt;
+
+    @TableField(exist = false)
+    private String operatorName;
+
+    @TableField(exist = false)
+    private String actionText;
 }

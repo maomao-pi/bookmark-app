@@ -1,0 +1,72 @@
+.stats-container {
+  padding: 16px 0;
+}
+
+.stats-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  gap: 12px;
+  color: #64748b;
+}
+
+.stats-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+}
+
+.stats-summary {
+  margin-bottom: 0;
+}
+
+.stats-card {
+  border-radius: 12px !important;
+  border: none !important;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06) !important;
+}
+
+.stats-card-blue {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe) !important;
+}
+.stats-card-blue .ant-statistic-title { color: #1d4ed8; }
+.stats-card-blue .ant-statistic-content { color: #1e40af; }
+
+.stats-card-purple {
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe) !important;
+}
+.stats-card-purple .ant-statistic-title { color: #6d28d9; }
+.stats-card-purple .ant-statistic-content { color: #5b21b6; }
+
+.stats-card-teal {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+}
+.stats-card-teal .ant-statistic-title { color: #065f46; }
+.stats-card-teal .ant-statistic-content { color: #064e3b; }
+
+.stats-card-amber {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7) !important;
+}
+.stats-card-amber .ant-statistic-title { color: #92400e; }
+.stats-card-amber .ant-statistic-content { color: #78350f; }
+
+.stats-chart-card {
+  border-radius: 12px !important;
+  border: 1px solid #f1f5f9 !important;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04) !important;
+}
+
+.stats-tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.stats-refresh-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}

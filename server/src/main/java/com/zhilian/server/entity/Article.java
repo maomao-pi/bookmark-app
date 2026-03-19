@@ -26,6 +26,12 @@ public class Article {
     private Integer pinned;  // 0-否, 1-是
     
     private LocalDateTime createdAt;
+
+    @TableField(exist = false)
+    private String createdByName;
+
+    @TableField(exist = false)
+    private String sourceType;
     
     @TableLogic
     private Integer deleted;

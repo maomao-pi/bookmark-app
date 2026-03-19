@@ -469,7 +469,11 @@ export function useAppData() {
         return false;
       });
     }
-    bookmarks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    bookmarks.sort((a, b) => {
+      const pinDiff = (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+      if (pinDiff !== 0) return pinDiff;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
     return bookmarks;
   }, [data.discoverBookmarks, discoverCategoryFilter, discoverSearchQuery]);
 

@@ -43,9 +43,10 @@ public class DiscoverController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) @Positive(message = "categoryId 必须大于 0") Long categoryId,
             @RequestParam(required = false) @Pattern(regexp = "^(visible|hidden)$", message = "status 仅支持 visible/hidden") String status,
+            @RequestParam(required = false) String creatorKeyword,
             @RequestParam(required = false) String sortField,
             @RequestParam(required = false) @Pattern(regexp = "^(asc|desc|ascend|descend)$", message = "sortOrder 仅支持 asc/desc/ascend/descend") String sortOrder) {
-        Page<DiscoverBookmark> page = discoverService.getDiscoverList(pageNum, pageSize, keyword, categoryId, status, sortField, sortOrder);
+        Page<DiscoverBookmark> page = discoverService.getDiscoverList(pageNum, pageSize, keyword, categoryId, status, creatorKeyword, sortField, sortOrder);
         return ApiResponse.success(PageData.from(page));
     }
 
@@ -77,8 +78,8 @@ public class DiscoverController {
     public ApiResponse<DiscoverBookmark> createDiscover(@RequestBody DiscoverBookmark discoverBookmark,
                                                         Authentication authentication,
                                                         HttpServletRequest request) {
-        DiscoverBookmark created = discoverService.createDiscover(discoverBookmark);
         Admin admin = (Admin) authentication.getPrincipal();
+        DiscoverBookmark created = discoverService.createDiscover(discoverBookmark, admin.getId(), "admin");
         operationLogService.log(admin.getId(), "CREATE_DISCOVER", "discover", created.getId(), request.getRemoteAddr(), "success",
                 Map.of("title", created.getTitle()));
         return ApiResponse.success(created);

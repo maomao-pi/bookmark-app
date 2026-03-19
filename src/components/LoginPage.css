@@ -1,0 +1,177 @@
+/* ===== 登录/注册页面 ===== */
+.lp-page {
+  min-height: 100vh;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 粒子画布 */
+.lp-particle-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ===== 卡片 ===== */
+.lp-card {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(37, 99, 235, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 420px;
+  padding: 44px 44px 32px;
+}
+
+/* ===== 顶部 ===== */
+.lp-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.lp-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #eff6ff;
+  padding: 8px;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
+  margin-bottom: 14px;
+}
+
+.lp-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px;
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: 1px;
+}
+
+.lp-subtitle {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* ===== Tab 切换 ===== */
+.lp-tabs {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 24px;
+}
+
+.lp-tab {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Outfit', sans-serif;
+}
+
+.lp-tab.active {
+  background: #fff;
+  color: #2563eb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.lp-tab:hover:not(.active) {
+  color: #334155;
+}
+
+/* ===== 表单 ===== */
+.lp-card .ant-form-item-label > label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.lp-card .ant-input-affix-wrapper {
+  background: #f8fafc;
+}
+
+.lp-card .ant-input-affix-wrapper:focus-within {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+  background: #fff !important;
+}
+
+/* 记住密码行 */
+.lp-row {
+  margin-bottom: 4px;
+}
+
+/* ===== 提交按钮 ===== */
+.lp-submit-btn {
+  background: #0f172a !important; /* 深色按钮 */
+  border-color: #0f172a !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: 3px;
+  box-shadow: none !important;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s !important;
+}
+
+.lp-submit-btn:hover:not(:disabled) {
+  background: #020617 !important;
+  border-color: #020617 !important;
+  transform: translateY(-1px);
+  box-shadow: none !important;
+}
+
+/* ===== 底部 ===== */
+.lp-footer {
+  text-align: center;
+  font-size: 12px;
+  color: #cbd5e1;
+  margin: 20px 0 0;
+}
+
+/* ===== 弹框模式包裹层 ===== */
+.lp-modal-wrap {
+  position: relative;
+  background: #f1f5f9;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* 弹框内粒子画布用 absolute，不影响页面滚动 */
+.lp-modal-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.lp-modal-wrap .lp-card {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 480px) {
+  .lp-card {
+    padding: 32px 24px 24px;
+  }
+}

@@ -43,9 +43,10 @@ public class ContentController {
             @RequestParam(required = false) @Positive(message = "bookmarkId 必须大于 0") Long bookmarkId,
             @RequestParam(required = false) @Pattern(regexp = "^(article|video|document|link)$", message = "type 仅支持 article/video/document/link") String type,
             @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) String creatorKeyword,
             @RequestParam(required = false) String sortField,
             @RequestParam(required = false) @Pattern(regexp = "^(asc|desc|ascend|descend)$", message = "sortOrder 仅支持 asc/desc/ascend/descend") String sortOrder) {
-        Page<Article> page = articleService.getUserContentList(pageNum, pageSize, keyword, bookmarkId, type, userId, sortField, sortOrder);
+        Page<Article> page = articleService.getUserContentList(pageNum, pageSize, keyword, bookmarkId, type, userId, creatorKeyword, sortField, sortOrder);
         return ApiResponse.success(PageData.from(page));
     }
 
@@ -56,9 +57,10 @@ public class ContentController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) @Positive(message = "discoverBookmarkId 必须大于 0") Long discoverBookmarkId,
             @RequestParam(required = false) @Pattern(regexp = "^(article|video|document|link)$", message = "type 仅支持 article/video/document/link") String type,
+            @RequestParam(required = false) String creatorKeyword,
             @RequestParam(required = false) String sortField,
             @RequestParam(required = false) @Pattern(regexp = "^(asc|desc|ascend|descend)$", message = "sortOrder 仅支持 asc/desc/ascend/descend") String sortOrder) {
-        Page<Article> page = articleService.getDiscoverContentList(pageNum, pageSize, keyword, discoverBookmarkId, type, sortField, sortOrder);
+        Page<Article> page = articleService.getDiscoverContentList(pageNum, pageSize, keyword, discoverBookmarkId, type, creatorKeyword, sortField, sortOrder);
         return ApiResponse.success(PageData.from(page));
     }
 
@@ -179,7 +181,8 @@ public class ContentController {
         }
         articleService.deleteArticle(id);
         Admin admin = (Admin) authentication.getPrincipal();
-        operationLogService.log(admin.getId(), "DELETE_USER_CONTENT", "article", id, request.getRemoteAddr(), "success");
+        operationLogService.logRevocable(admin.getId(), "DELETE_USER_CONTENT", "article", id, request.getRemoteAddr(), "success",
+                Map.of("title", existing.getTitle()));
         return ApiResponse.success();
     }
 
@@ -193,7 +196,8 @@ public class ContentController {
         }
         articleService.deleteArticle(id);
         Admin admin = (Admin) authentication.getPrincipal();
-        operationLogService.log(admin.getId(), "DELETE_DISCOVER_CONTENT", "article", id, request.getRemoteAddr(), "success");
+        operationLogService.logRevocable(admin.getId(), "DELETE_DISCOVER_CONTENT", "article", id, request.getRemoteAddr(), "success",
+                Map.of("title", existing.getTitle()));
         return ApiResponse.success();
     }
 }

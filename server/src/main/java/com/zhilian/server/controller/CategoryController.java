@@ -37,9 +37,10 @@ public class CategoryController {
             @RequestParam(defaultValue = "1") @Min(value = 1, message = "pageNum 必须大于等于 1") int pageNum,
             @RequestParam(defaultValue = "10") @Min(value = 1, message = "pageSize 必须大于等于 1") @Max(value = 100, message = "pageSize 不能超过 100") int pageSize,
             @RequestParam(required = false) @Pattern(regexp = "^(user|discover)$", message = "type 仅支持 user/discover") String type,
+            @RequestParam(required = false) String creatorKeyword,
             @RequestParam(required = false) String sortField,
             @RequestParam(required = false) @Pattern(regexp = "^(asc|desc|ascend|descend)$", message = "sortOrder 仅支持 asc/desc/ascend/descend") String sortOrder) {
-        Page<Category> page = categoryService.getCategoryList(pageNum, pageSize, type, sortField, sortOrder);
+        Page<Category> page = categoryService.getCategoryList(pageNum, pageSize, type, creatorKeyword, sortField, sortOrder);
         return ApiResponse.success(PageData.from(page));
     }
     
@@ -60,7 +61,7 @@ public class CategoryController {
                                                 Authentication authentication,
                                                 HttpServletRequest request) {
         Admin admin = (Admin) authentication.getPrincipal();
-        Category created = categoryService.createCategory(category, admin.getId());
+        Category created = categoryService.createCategory(category, admin.getId(), "admin");
         operationLogService.log(admin.getId(), "CREATE_CATEGORY", "category", created.getId(), request.getRemoteAddr(), "success",
                 Map.of("name", created.getName()));
         return ApiResponse.success(created);

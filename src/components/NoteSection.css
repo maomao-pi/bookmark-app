@@ -1,0 +1,98 @@
+.note-section {
+  padding: 16px 0 8px;
+  border-top: 1px solid var(--border-color, #e8e8e8);
+  margin-top: 12px;
+}
+
+.note-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.note-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.note-add-btn {
+  color: var(--primary-color, #4f8ef7) !important;
+  font-size: 13px;
+}
+
+.note-editor {
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.note-editor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.note-loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.note-empty {
+  padding: 12px 0 !important;
+}
+
+.note-item {
+  padding: 10px 0 !important;
+  border-bottom: 1px solid var(--border-color, #f0f0f0) !important;
+  align-items: flex-start !important;
+}
+
+.note-item:last-child {
+  border-bottom: none !important;
+}
+
+.note-item-content {
+  width: 100%;
+}
+
+.note-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary, #333);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 4px;
+}
+
+.note-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.note-date {
+  font-size: 11px;
+  color: var(--text-secondary, #999) !important;
+}
+
+.note-item-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.note-item:hover .note-item-actions {
+  opacity: 1;
+}
+
+.note-edit-area {
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  padding: 10px;
+}

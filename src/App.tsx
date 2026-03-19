@@ -79,6 +79,7 @@ function App() {
   const [articleModalOpen, setArticleModalOpen] = useState(false);
   const [editingArticle, setEditingArticle] = useState<Article | null>(null);
   const [articleDefaultType, setArticleDefaultType] = useState<'article' | 'video' | 'document' | 'link'>('article');
+  const [articleSaveSignal, setArticleSaveSignal] = useState(0);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
@@ -220,6 +221,7 @@ function App() {
     
     setArticleModalOpen(false);
     setEditingArticle(null);
+    setArticleSaveSignal(prev => prev + 1);
     
     const updated = getBookmarkById(currentBookmark.id);
     if (updated) {
@@ -479,8 +481,8 @@ function App() {
         <Header className="app-header">
           <div className="header-content">
             <div className="logo-brand" onClick={() => setCurrentPage('home')}>
-              <img src="/logo3.png" alt="Mimori" className="logo-img" />
-              <span className="logo-name">Mimori</span>
+              <img src="/logo3.png" alt="Linkbox" className="logo-img" />
+              <span className="logo-name">Linkbox</span>
             </div>
             
             <Menu
@@ -594,6 +596,7 @@ function App() {
               setCurrentBookmark({ ...currentBookmark, articles });
             }
           }}
+          articleSaveSignal={articleSaveSignal}
           onTagAdded={(bookmarkId, newTag) => {
             if (currentBookmark && currentBookmark.id === bookmarkId) {
               const updatedTags = [...(currentBookmark.tags || []), newTag];

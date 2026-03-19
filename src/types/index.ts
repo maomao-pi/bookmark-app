@@ -147,6 +147,7 @@ export interface DiscoverBookmark {
   source?: string;
   tags: string[];
   articles: Article[];
+  pinned?: boolean;
   createdAt: string;
   updatedAt: string;
 }

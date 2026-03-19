@@ -41,11 +41,16 @@ CREATE TABLE IF NOT EXISTS category (
     icon VARCHAR(500) DEFAULT NULL COMMENT '图标',
     parent_id BIGINT DEFAULT NULL COMMENT '父分类ID',
     type VARCHAR(20) DEFAULT 'user' COMMENT '类型: user-用户分类, discover-发现分类',
+    created_by_id BIGINT DEFAULT NULL COMMENT '创建者ID',
+    created_by_type VARCHAR(20) DEFAULT NULL COMMENT '创建者类型: user/admin',
     sort INT DEFAULT 0 COMMENT '排序',
     status VARCHAR(20) DEFAULT 'visible' COMMENT '状态: visible-显示, hidden-隐藏',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分类表';
+
+ALTER TABLE category ADD COLUMN IF NOT EXISTS created_by_id BIGINT DEFAULT NULL COMMENT '创建者ID';
+ALTER TABLE category ADD COLUMN IF NOT EXISTS created_by_type VARCHAR(20) DEFAULT NULL COMMENT '创建者类型: user/admin';
 
 -- 收藏表
 CREATE TABLE IF NOT EXISTS bookmark (
@@ -68,10 +73,11 @@ CREATE TABLE IF NOT EXISTS bookmark (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='收藏表';
 
--- 文章表
+-- 文章表（用户内容用 bookmark_id，发现内容用 discover_bookmark_id，二者其一必填）
 CREATE TABLE IF NOT EXISTS article (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    bookmark_id BIGINT NOT NULL COMMENT '收藏ID',
+    bookmark_id BIGINT NULL COMMENT '收藏ID',
+    discover_bookmark_id BIGINT NULL COMMENT '发现收藏ID',
     title VARCHAR(200) NOT NULL COMMENT '标题',
     url VARCHAR(2000) NOT NULL COMMENT '网址',
     description TEXT DEFAULT NULL COMMENT '描述',
@@ -79,11 +85,15 @@ CREATE TABLE IF NOT EXISTS article (
     pinned TINYINT DEFAULT 0 COMMENT '是否置顶: 0-否, 1-是',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
-    INDEX idx_bookmark_id (bookmark_id)
+    INDEX idx_bookmark_id (bookmark_id),
+    INDEX idx_discover_bookmark_id (discover_bookmark_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章表';
 
 -- 迁移：为已有 article 表增加 pinned 字段（新部署时 CREATE TABLE 已含此列，可跳过）
 ALTER TABLE article ADD COLUMN IF NOT EXISTS pinned TINYINT DEFAULT 0 COMMENT '是否置顶: 0-否, 1-是';
+-- 迁移：支持发现内容（旧表无 discover_bookmark_id 时取消下行注释执行；bookmark_id 改为可空）
+-- ALTER TABLE article ADD COLUMN discover_bookmark_id BIGINT DEFAULT NULL COMMENT '发现收藏ID';
+ALTER TABLE article MODIFY COLUMN bookmark_id BIGINT NULL COMMENT '收藏ID';
 
 -- 发现内容表
 CREATE TABLE IF NOT EXISTS discover_bookmark (
@@ -98,11 +108,19 @@ CREATE TABLE IF NOT EXISTS discover_bookmark (
     tags JSON DEFAULT NULL COMMENT '标签(JSON数组)',
     sort INT DEFAULT 0 COMMENT '排序',
     status VARCHAR(20) DEFAULT 'visible' COMMENT '状态: visible-显示, hidden-隐藏',
+    created_by_id BIGINT DEFAULT NULL COMMENT '创建者ID',
+    created_by_type VARCHAR(20) DEFAULT NULL COMMENT '创建者类型: user/admin',
+    pinned TINYINT DEFAULT 0 COMMENT '是否置顶: 0-否, 1-是',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     deleted TINYINT DEFAULT 0 COMMENT '逻辑删除: 0-未删除, 1-已删除',
     INDEX idx_category_id (category_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='发现内容表';
+
+-- 迁移：为已有 discover_bookmark 表增加 pinned 字段（新部署时 CREATE TABLE 已含此列，可跳过）
+ALTER TABLE discover_bookmark ADD COLUMN IF NOT EXISTS pinned TINYINT DEFAULT 0 COMMENT '是否置顶: 0-否, 1-是';
+ALTER TABLE discover_bookmark ADD COLUMN IF NOT EXISTS created_by_id BIGINT DEFAULT NULL COMMENT '创建者ID';
+ALTER TABLE discover_bookmark ADD COLUMN IF NOT EXISTS created_by_type VARCHAR(20) DEFAULT NULL COMMENT '创建者类型: user/admin';
 
 -- 操作日志表
 CREATE TABLE IF NOT EXISTS operation_log (
@@ -114,10 +132,19 @@ CREATE TABLE IF NOT EXISTS operation_log (
     detail JSON DEFAULT NULL COMMENT '详细信息',
     ip VARCHAR(50) DEFAULT NULL COMMENT 'IP地址',
     result VARCHAR(20) DEFAULT 'success' COMMENT '结果: success, failed',
+    revocable TINYINT DEFAULT 0 COMMENT '是否可撤回',
+    reverted TINYINT DEFAULT 0 COMMENT '是否已撤回',
+    revert_parent_id BIGINT DEFAULT NULL COMMENT '对应原始日志ID',
+    reverted_at DATETIME DEFAULT NULL COMMENT '撤回时间',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     INDEX idx_admin_id (admin_id),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
+
+ALTER TABLE operation_log ADD COLUMN IF NOT EXISTS revocable TINYINT DEFAULT 0 COMMENT '是否可撤回';
+ALTER TABLE operation_log ADD COLUMN IF NOT EXISTS reverted TINYINT DEFAULT 0 COMMENT '是否已撤回';
+ALTER TABLE operation_log ADD COLUMN IF NOT EXISTS revert_parent_id BIGINT DEFAULT NULL COMMENT '对应原始日志ID';
+ALTER TABLE operation_log ADD COLUMN IF NOT EXISTS reverted_at DATETIME DEFAULT NULL COMMENT '撤回时间';
 
 -- 系统配置表
 CREATE TABLE IF NOT EXISTS system_setting (
