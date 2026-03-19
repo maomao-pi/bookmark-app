@@ -449,7 +449,11 @@ mvn spring-boot:run  # http://localhost:8080
 - 用户名：`admin`
 - 密码：`admin123`
 
-### 8.3 生产构建
+### 8.3 数据库迁移（升级）
+
+升级到当前版本后，若数据库为旧 schema（`app_user` 表缺少 `nickname`、`bio`、`phone`、`delete_pending_at` 等列），需**手动执行迁移 SQL 并重启应用**，否则用户端登录会报错。可执行步骤与验证方法见：[specs/004-fix-login-ai-analysis/quickstart.md](specs/004-fix-login-ai-analysis/quickstart.md)。
+
+### 8.4 生产构建
 
 ```bash
 # 前端构建

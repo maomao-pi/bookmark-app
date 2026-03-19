@@ -1,4 +1,4 @@
-import type { Bookmark, Category, Article } from '../types';
+import type { Bookmark, Category, Article, Note } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -91,7 +91,22 @@ export interface ApiArticle {
   url: string;
   description?: string;
   type: 'article' | 'video' | 'document' | 'link';
+  pinned?: number;
   createdAt?: string;
+}
+
+function parseTags(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+    } catch {
+      // fall through to comma split
+    }
+  }
+  return trimmed.split(',').map(t => t.trim()).filter(Boolean);
 }
 
 function transformBookmark(api: ApiBookmark): Bookmark {
@@ -103,9 +118,27 @@ function transformBookmark(api: ApiBookmark): Bookmark {
     categoryId: api.categoryId ? String(api.categoryId) : '',
     favicon: api.favicon || '',
     source: api.source || '',
-    tags: api.tags ? api.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+    tags: parseTags(api.tags),
     thumbnail: api.thumbnail || '',
     articles: [],
+    createdAt: api.createdAt || new Date().toISOString(),
+    updatedAt: api.updatedAt || new Date().toISOString(),
+  };
+}
+
+export interface ApiNote {
+  id: number;
+  bookmarkId: number;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function transformNote(api: ApiNote): Note {
+  return {
+    id: String(api.id),
+    bookmarkId: String(api.bookmarkId),
+    content: api.content,
     createdAt: api.createdAt || new Date().toISOString(),
     updatedAt: api.updatedAt || new Date().toISOString(),
   };
@@ -207,6 +240,7 @@ export const userApi = {
       url: a.url,
       description: a.description || '',
       type: a.type as Article['type'],
+      pinned: Boolean(a.pinned),
       createdAt: a.createdAt || new Date().toISOString(),
     }));
   },
@@ -217,6 +251,7 @@ export const userApi = {
       url: article.url,
       description: article.description,
       type: article.type,
+      pinned: article.pinned ? 1 : 0,
     });
     return {
       id: String(api.id),
@@ -224,6 +259,7 @@ export const userApi = {
       url: api.url,
       description: api.description || '',
       type: api.type as Article['type'],
+      pinned: Boolean(api.pinned),
       createdAt: api.createdAt || new Date().toISOString(),
     };
   },
@@ -234,6 +270,7 @@ export const userApi = {
       url: article.url,
       description: article.description,
       type: article.type,
+      pinned: article.pinned ? 1 : 0,
     });
     return {
       id: String(api.id),
@@ -241,12 +278,31 @@ export const userApi = {
       url: api.url,
       description: api.description || '',
       type: api.type as Article['type'],
+      pinned: Boolean(api.pinned),
       createdAt: api.createdAt || new Date().toISOString(),
     };
   },
 
   async deleteArticle(bookmarkId: string, articleId: string): Promise<void> {
     return request<void>('DELETE', `/api/user/bookmarks/${bookmarkId}/articles/${articleId}`);
+  },
+
+  async getNotes(bookmarkId: string): Promise<Note[]> {
+    const data = await request<ApiNote[]>('GET', `/api/user/bookmarks/${bookmarkId}/notes`);
+    return data.map(transformNote);
+  },
+
+  async createNote(bookmarkId: string, content: string): Promise<Note> {
+    const api = await request<ApiNote>('POST', `/api/user/bookmarks/${bookmarkId}/notes`, { content });
+    return transformNote(api);
+  },
+
+  async updateNote(bookmarkId: string, noteId: string, content: string): Promise<void> {
+    return request<void>('PUT', `/api/user/bookmarks/${bookmarkId}/notes/${noteId}`, { content });
+  },
+
+  async deleteNote(bookmarkId: string, noteId: string): Promise<void> {
+    return request<void>('DELETE', `/api/user/bookmarks/${bookmarkId}/notes/${noteId}`);
   },
 
   async getDiscoverCategories(): Promise<Category[]> {
@@ -265,5 +321,76 @@ export const userApi = {
 
   getBaseUrl() {
     return API_BASE_URL;
-  }
+  },
+
+  // -------------------- 扩展认证 --------------------
+
+  async sendVerificationCode(target: string, purpose: string): Promise<void> {
+    return request<void>('POST', '/api/user/auth/send-code', { target, purpose });
+  },
+
+  async loginByEmail(email: string, password: string): Promise<LoginResponse> {
+    const data = await request<{ user: LoginResponse['user']; token: string }>(
+      'POST', '/api/user/auth/login-email', { email, password }
+    );
+    setToken(data.token);
+    return data;
+  },
+
+  async loginByEmailCode(email: string, code: string): Promise<LoginResponse> {
+    const data = await request<{ user: LoginResponse['user']; token: string }>(
+      'POST', '/api/user/auth/login-email', { email, code }
+    );
+    setToken(data.token);
+    return data;
+  },
+
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    return request<void>('POST', '/api/user/auth/change-password', { oldPassword, newPassword });
+  },
+
+  // -------------------- 个人资料 --------------------
+
+  async updateExtendedProfile(data: { nickname?: string; bio?: string; avatar?: string }): Promise<void> {
+    return request<void>('PUT', '/api/user/profile/extended', data);
+  },
+
+  async uploadAvatar(file: File): Promise<{ avatarUrl: string }> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/api/user/profile/avatar`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const json = await response.json();
+    if (!response.ok || json.code !== 200) throw new Error(json.message || '上传失败');
+    return json.data;
+  },
+
+  // -------------------- 收藏统计 --------------------
+
+  async getBookmarkStats(): Promise<import('../types').BookmarkStatsData> {
+    return request<import('../types').BookmarkStatsData>('GET', '/api/user/stats/bookmarks');
+  },
+
+  // -------------------- AI 分析 --------------------
+
+  async analyzeBookmark(bookmarkId: string): Promise<import('../types').BookmarkAnalysisResult> {
+    return request<import('../types').BookmarkAnalysisResult>('POST', `/api/user/bookmarks/${bookmarkId}/analyze`);
+  },
+
+  // -------------------- AI 咨讯 --------------------
+
+  async getAiNews(forceRefresh = false): Promise<import('../types').AiNewsItem[]> {
+    const url = forceRefresh
+      ? '/api/user/ai/news?refresh=true'
+      : '/api/user/ai/news';
+    return request<import('../types').AiNewsItem[]>('GET', url);
+  },
+
+  async refreshAiNews(): Promise<void> {
+    return request<void>('GET', '/api/user/ai/news/clear-cache');
+  },
 };

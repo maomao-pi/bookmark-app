@@ -11,6 +11,7 @@ import { ContentManagement } from './ContentManagement';
 import { SystemSettings } from './SystemSettings';
 import { OperationLogs } from './OperationLogs';
 import { AdminManagement } from './AdminManagement';
+import { AiLogs } from './AiLogs';
 import { AdminApi } from '../../services/adminApi';
 import type { AdminLoginResponse } from '../../types/admin';
 
@@ -174,6 +175,8 @@ export function AdminApp() {
         return <SystemSettings api={api} />;
       case 'admins':
         return <AdminManagement api={api} currentAdminRole={adminInfo?.role} />;
+      case 'ai-logs':
+        return <AiLogs api={api} />;
       default:
         return <Dashboard api={api} />;
     }

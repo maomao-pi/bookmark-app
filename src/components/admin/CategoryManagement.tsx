@@ -3,6 +3,7 @@ import { Table, Button, Input, Space, Tag, Modal, Typography, Popconfirm, messag
 import { PlusOutlined, DeleteOutlined, EditOutlined, UpOutlined, DownOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { CategoryItem, PageData } from '../../types/admin';
+import './CategoryManagement.css';
 
 const { Title, Text } = Typography;
 
@@ -253,6 +254,9 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
         rowKey="id"
         loading={loading}
         pagination={false}
+        size="small"
+        scroll={{ x: 600 }}
+        rowClassName={() => 'category-table-row'}
       />
 
       <Modal

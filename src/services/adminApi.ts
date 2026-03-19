@@ -397,4 +397,17 @@ export class AdminApi {
   updateAdminPermissions(id: number, permissions: string) {
     return this.request<AdminUser>('PUT', `/api/admin/${id}/permissions`, { permissions });
   }
+
+  // -------------------- AI 分析日志 --------------------
+  getAiAnalysisLogs(params: { pageNum: number; pageSize: number; userId?: number; analysisType?: string }) {
+    return this.request<import('../types/admin').PageData<Record<string, unknown>>>(
+      'GET',
+      `/api/admin/ai/logs${buildQuery({ pageNum: params.pageNum, pageSize: params.pageSize, userId: params.userId, analysisType: params.analysisType })}`,
+    );
+  }
+
+  // -------------------- 用户认证绑定 --------------------
+  getUserAuthBindings(userId: number) {
+    return this.request<Record<string, unknown>[]>('GET', `/api/admin/users/${userId}/auth-bindings`);
+  }
 }

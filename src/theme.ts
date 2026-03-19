@@ -9,7 +9,7 @@ export const lightTheme: ThemeConfig = {
     colorText: '#1A1815',
     colorTextSecondary: '#6B6560',
     colorBorder: '#E0DCD7',
-    borderRadius: 20,
+    borderRadius: 8,
     fontFamily: "'Outfit', sans-serif",
   },
   components: {
@@ -18,11 +18,11 @@ export const lightTheme: ThemeConfig = {
       controlHeight: 36,
     },
     Input: {
-      borderRadius: 20,
+      borderRadius: 8,
       controlHeight: 36,
     },
     Select: {
-      borderRadius: 20,
+      borderRadius: 8,
       controlHeight: 36,
     },
     Menu: {
@@ -32,7 +32,7 @@ export const lightTheme: ThemeConfig = {
       itemHoverColor: '#3B82F6',
     },
     Modal: {
-      borderRadius: 20,
+      borderRadius: 12,
     },
   },
 };
@@ -46,7 +46,7 @@ export const darkTheme: ThemeConfig = {
     colorText: '#F0F0F0',
     colorTextSecondary: '#A0A0A0',
     colorBorder: '#333333',
-    borderRadius: 20,
+    borderRadius: 8,
     fontFamily: "'Outfit', sans-serif",
   },
   components: {
@@ -56,11 +56,11 @@ export const darkTheme: ThemeConfig = {
       colorPrimary: '#3B82F6',
     },
     Input: {
-      borderRadius: 20,
+      borderRadius: 8,
       controlHeight: 36,
     },
     Select: {
-      borderRadius: 20,
+      borderRadius: 8,
       controlHeight: 36,
     },
     Menu: {
@@ -70,7 +70,7 @@ export const darkTheme: ThemeConfig = {
       itemHoverColor: '#3B82F6',
     },
     Modal: {
-      borderRadius: 20,
+      borderRadius: 12,
     },
   },
 };

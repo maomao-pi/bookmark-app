@@ -17,10 +17,10 @@ const DEFAULT_AI_CONFIG: AIServiceConfig = {
   model: 'glm-4',
 };
 
-// 兼容旧字段名
+// 兼容旧字段名（与后端默认配置保持一致）
 const GLM_API_CONFIG = {
   baseURL: 'https://open.bigmodel.cn/api/paas/v4',
-  model: 'glm-4.6',
+  model: 'glm-4',
   timeout: 15000,
   maxRetries: 3
 };
@@ -34,7 +34,7 @@ export interface URLMetadata {
   title: string;
   description: string;
   favicon: string;
-  contentType: 'article' | 'video' | 'document' | 'tool' | 'other';
+  contentType: 'article' | 'video' | 'document' | 'link' | 'other';
   suggestedTags: string[];
   suggestedCategory: string;
 }
@@ -81,7 +81,7 @@ const setCache = <T>(key: string, data: T): void => {
 };
 
 // 内容类型检测
-const detectContentTypeFromURL = (url: string): 'article' | 'video' | 'document' | 'tool' | 'other' => {
+const detectContentTypeFromURL = (url: string): 'article' | 'video' | 'document' | 'link' | 'other' => {
   const lowerUrl = url.toLowerCase();
   
   if (lowerUrl.includes('youtube') || lowerUrl.includes('bilibili') || 
@@ -96,7 +96,7 @@ const detectContentTypeFromURL = (url: string): 'article' | 'video' | 'document'
   
   if (lowerUrl.includes('github') || lowerUrl.includes('codepen') || 
       lowerUrl.includes('jsfiddle') || lowerUrl.includes('codesandbox')) {
-    return 'tool';
+    return 'link';
   }
   
   if (lowerUrl.includes('medium') || lowerUrl.includes('dev.to') || 
@@ -427,12 +427,12 @@ ${existingDescription ? `现有描述: ${existingDescription}` : ''}
       // 基础规则检测
       const contentType = detectContentTypeFromURL(url);
       
-      // 映射到文章类型（无链接，tool/other 归为文档）
+      // 映射到文章类型（link/other 归为 document）
       const articleTypeMap = {
         'article': 'article',
         'video': 'video',
         'document': 'document',
-        'tool': 'document',
+        'link': 'document',
         'other': 'document'
       };
 

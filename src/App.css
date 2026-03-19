@@ -149,15 +149,26 @@ body {
   align-items: center;
 }
 
-.logo-img {
-  height: 32px;
-  width: auto;
+.logo-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
-.logo-img:hover {
-  transform: scale(1.05);
+.logo-img {
+  height: 26px;
+  width: auto;
+}
+
+.logo-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  font-family: 'Outfit', sans-serif;
+  line-height: 1;
 }
 
 /* Header Menu */
@@ -253,6 +264,11 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
 
 .toolbar .ant-input-search .ant-input-affix-wrapper {
   height: 34px !important;
+  border-radius: 20px 0 0 20px !important;
+}
+
+.toolbar .ant-input-search > .ant-input-group > .ant-input-group-addon:last-child .ant-input-search-button {
+  border-radius: 0 20px 20px 0 !important;
 }
 
 .toolbar .ant-input-search .ant-input-affix-wrapper .ant-input {
@@ -268,16 +284,20 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
   min-height: calc(100vh - 200px);
 }
 
-/* Bookmarks Waterfall */
+/* Bookmarks Grid — 等高网格，自动响应列数 */
 .bookmarks-waterfall {
-  column-count: 4;
-  column-gap: 18px;
+  display: grid;
+  /* minmax 280px：在左侧可用宽度内自动计算列数 */
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-auto-rows: 1fr;   /* 同一行等高 */
+  gap: 18px;
   animation: fadeInUp 0.5s ease;
 }
 
 .bookmarks-waterfall .bookmark-card {
-  break-inside: avoid;
-  margin-bottom: 18px;
+  /* 撑满 grid 单元格，保证同行等高 */
+  height: 100%;
+  margin-bottom: 0;
 }
 
 @keyframes fadeInUp {
@@ -441,19 +461,97 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
   flex: 1;
 }
 
-/* 响应式 - 平板 */
-@media (max-width: 1200px) {
-  .bookmarks-waterfall {
-    column-count: 3;
+/* ==========================================
+   首页两栏布局（左收藏 + 右AI推荐）
+   ========================================== */
+
+/* 宽屏（≥992px）：左右分栏 */
+.home-layout-wrapper {
+  display: flex;
+  gap: 0;
+  padding: 0 50px;
+  align-items: flex-start;
+}
+
+/* 左侧：收藏区（工具栏 + 收藏列表） */
+.home-bookmarks-col {
+  flex: 1;
+  min-width: 0;
+  /* 右侧留出间距，与分割线拉开距离 */
+  padding-right: 24px;
+}
+
+.home-bookmarks-col .toolbar {
+  padding: 20px 0;
+}
+
+.home-bookmarks-content {
+  padding-bottom: 50px;
+  min-height: calc(100vh - 200px);
+  position: relative;
+  z-index: 1;
+}
+
+/* 右侧：AI推荐面板（固定宽度，粘性定位，左侧用分割线与收藏区分隔） */
+.home-ai-col {
+  width: 480px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 72px;
+  /* 淡色分割线 */
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
+  /* 左内边距撑开与分割线的间距；右内边距让 ribbon 不被遮挡 */
+  padding-left: 24px;
+  padding-right: 16px;
+}
+
+/* 窄屏（<992px）：上下布局（先收藏，后推荐） */
+@media (max-width: 992px) {
+  .home-layout-wrapper {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .home-bookmarks-col {
+    padding-right: 0;
+  }
+
+  .home-ai-col {
+    width: 100%;
+    position: static;
+    border-left: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 20px;
+    margin-top: 8px;
   }
 }
 
-/* 响应式 - 小平板 */
+/* 深色模式分割线 */
+[data-theme="dark"] .home-ai-col {
+  border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .home-ai-col.narrow-top {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* 与发现页响应式保持一致 */
 @media (max-width: 1024px) {
-  .bookmarks-waterfall {
-    column-count: 3;
+  .home-layout-wrapper {
+    padding: 0 24px;
   }
-  
+}
+
+@media (max-width: 640px) {
+  .home-layout-wrapper {
+    padding: 0 16px;
+  }
+}
+
+/* 响应式 — 小平板及以下 (≤1024px)：外边距收窄 */
+@media (max-width: 1024px) {
   .app-header,
   .toolbar,
   .app-content {
@@ -462,28 +560,36 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
   }
 }
 
-/* 响应式 - 手机 */
+/* 响应式 — 窄屏幕 (≤992px)：右侧 AI 面板折叠为上下布局后
+   左侧变全宽，强制 2 列 */
+@media (max-width: 992px) {
+  .bookmarks-waterfall {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* 响应式 — 手机 (≤768px) */
 @media (max-width: 768px) {
   .bookmarks-waterfall {
-    column-count: 2;
+    grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .toolbar {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
   }
-  
+
   .toolbar-left {
     flex-wrap: wrap;
     justify-content: flex-start;
   }
-  
+
   .toolbar-right {
     max-width: none;
     justify-content: flex-start;
   }
-  
+
   .toolbar-right .ant-input-search {
     flex: 1;
     min-width: unset;
@@ -492,7 +598,7 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
 
 @media (max-width: 640px) {
   .bookmarks-waterfall {
-    column-count: 1;
+    grid-template-columns: 1fr;
   }
   
   .app-header {
@@ -534,6 +640,6 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
   }
   
   .logo-img {
-    height: 28px;
+    height: 22px;
   }
 }
