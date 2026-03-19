@@ -137,6 +137,114 @@ export function SystemSettings({ api }: SystemSettingsProps) {
         <Tabs
           items={[
             {
+              key: 'ai-models',
+              label: 'AI 模型',
+              children: (
+                <Card bordered={false} styles={{ body: { padding: '0 0 8px' } }}>
+                  <Tabs
+                    type="card"
+                    size="small"
+                    style={{ marginTop: 4 }}
+                    items={[
+                      {
+                        key: 'text',
+                        label: '文本模型',
+                        children: (
+                          <div style={{ padding: '16px 0 0' }}>
+                            <Alert
+                              message="用途：描述生成、标签建议、AI 整理建议等文本生成功能。"
+                              type="info"
+                              showIcon
+                              style={{ marginBottom: 16 }}
+                            />
+                            <Form.Item name="ai.text.enabled" label="启用文本 AI 功能" valuePropName="checked">
+                              <Switch />
+                            </Form.Item>
+                            <Form.Item name="ai.text.apiKey" label="API Key">
+                              <Input.Password placeholder="请输入阿里云百炼 API Key" />
+                            </Form.Item>
+                            <Form.Item name="ai.text.baseUrl" label="API 地址">
+                              <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+                            </Form.Item>
+                            <Form.Item name="ai.text.model" label="模型名称">
+                              <Input placeholder="qwen3-plus" />
+                            </Form.Item>
+                            <Button icon={<ExperimentOutlined />} onClick={handleTestTextAi} loading={testingAi}>
+                              测试连接
+                            </Button>
+                            <Divider style={{ margin: '20px 0 16px' }} />
+                            <Form.Item name="ai.organizeEnabled" label="启用 AI 整理建议" valuePropName="checked">
+                              <Switch />
+                            </Form.Item>
+                            <Form.Item name="ai.organizeFrequencyDays" label="整理建议生成频率（天）">
+                              <InputNumber min={1} max={30} style={{ width: 120 }} />
+                            </Form.Item>
+                          </div>
+                        ),
+                      },
+                      {
+                        key: 'search',
+                        label: '联网搜索模型',
+                        children: (
+                          <div style={{ padding: '16px 0 0' }}>
+                            <Alert
+                              message="用于「AI 为你推荐」功能，调用联网搜索模型可返回真实可访问的互联网链接。推荐使用阿里云百炼 qwen3-max 或 qwen-max 模型（需确保 API Key 有权限）。"
+                              type="info"
+                              showIcon
+                              style={{ marginBottom: 20 }}
+                            />
+                            <Form.Item
+                              name="recommend.external.enabled"
+                              label="启用 AI 推荐功能"
+                              valuePropName="checked"
+                              extra="开启后用户端右侧将显示「AI 为你推荐」内容区域"
+                            >
+                              <Switch />
+                            </Form.Item>
+                            <Form.Item
+                              name="ai.search.enabled"
+                              label="使用联网搜索模型"
+                              valuePropName="checked"
+                              extra="开启后调用联网搜索模型获取真实互联网链接；关闭则使用文本模型（可能生成无效链接）"
+                            >
+                              <Switch />
+                            </Form.Item>
+                            <Divider style={{ margin: '8px 0 16px' }} />
+                            <Form.Item name="ai.search.apiKey" label="API Key">
+                              <Input.Password placeholder="请输入阿里云百炼 API Key" />
+                            </Form.Item>
+                            <Form.Item name="ai.search.baseUrl" label="API 地址">
+                              <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+                            </Form.Item>
+                            <Form.Item name="ai.search.model" label="模型名称" extra="推荐：qwen3-max 或 qwen-max（支持联网搜索）">
+                              <Input placeholder="qwen3-max" />
+                            </Form.Item>
+                            <Form.Item name="recommend.limit" label="每次推荐数量">
+                              <InputNumber min={1} max={20} style={{ width: 120 }} />
+                            </Form.Item>
+                            <Button icon={<ExperimentOutlined />} onClick={handleTestSearchAi} loading={testingSearch}>
+                              测试连接
+                            </Button>
+                          </div>
+                        ),
+                      },
+                    ]}
+                  />
+                </Card>
+              ),
+            },
+            {
+              key: 'recommend',
+              label: '内容推荐配置',
+              children: (
+                <Card bordered={false}>
+                  <Form.Item name="recommend.internal.enabled" label="启用内部推荐（基于收藏库）" valuePropName="checked">
+                    <Switch />
+                  </Form.Item>
+                </Card>
+              ),
+            },
+            {
               key: 'theme',
               label: '内容主题配置',
               children: (
@@ -151,98 +259,6 @@ export function SystemSettings({ api }: SystemSettingsProps) {
                   </Form.Item>
                   <Form.Item name="theme.allowUserSwitch" label="允许用户切换主题" valuePropName="checked">
                     <Switch />
-                  </Form.Item>
-                </Card>
-              ),
-            },
-            {
-              key: 'ai-text',
-              label: 'AI 文本模型',
-              children: (
-                <Card bordered={false}>
-                  <Alert
-                    message="文本模型用途"
-                    description="用于描述生成、标签建议、AI 整理建议等需要文本生成的功能。"
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
-                  <Form.Item name="ai.text.enabled" label="启用文本 AI 功能" valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item name="ai.text.apiKey" label="API Key" rules={[{ required: false }]}>
-                    <Input.Password placeholder="请输入阿里云百炼 API Key" />
-                  </Form.Item>
-                  <Form.Item name="ai.text.baseUrl" label="API 地址">
-                    <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
-                  </Form.Item>
-                  <Form.Item name="ai.text.model" label="模型名称">
-                    <Input placeholder="qwen3-plus" />
-                  </Form.Item>
-                  <Button
-                    icon={<ExperimentOutlined />}
-                    onClick={handleTestTextAi}
-                    loading={testingAi}
-                  >
-                    测试连接
-                  </Button>
-                  <Divider style={{ margin: '16px 0' }} />
-                  <Form.Item name="ai.organizeEnabled" label="启用 AI 整理建议" valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item name="ai.organizeFrequencyDays" label="整理建议生成频率（天）">
-                    <InputNumber min={1} max={30} style={{ width: 120 }} />
-                  </Form.Item>
-                </Card>
-              ),
-            },
-            {
-              key: 'ai-search',
-              label: 'AI 联网搜索',
-              children: (
-                <Card bordered={false}>
-                  <Alert
-                    message="联网搜索模型用途"
-                    description="用于 AI 为你推荐功能，需要返回真实可访问的链接。推荐使用 qwen3-search 模型。"
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                  />
-                  <Form.Item name="ai.search.enabled" label="启用联网搜索 AI" valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item name="ai.search.apiKey" label="API Key">
-                    <Input.Password placeholder="请输入阿里云百炼 API Key（可与文本模型相同或不同）" />
-                  </Form.Item>
-                  <Form.Item name="ai.search.baseUrl" label="API 地址">
-                    <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
-                  </Form.Item>
-                  <Form.Item name="ai.search.model" label="模型名称">
-                    <Input placeholder="qwen3-search" />
-                  </Form.Item>
-                  <Button
-                    icon={<ExperimentOutlined />}
-                    onClick={handleTestSearchAi}
-                    loading={testingSearch}
-                  >
-                    测试连接
-                  </Button>
-                </Card>
-              ),
-            },
-            {
-              key: 'recommend',
-              label: '内容推荐配置',
-              children: (
-                <Card bordered={false}>
-                  <Form.Item name="recommend.internal.enabled" label="启用内部推荐（基于收藏库）" valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item name="recommend.external.enabled" label="启用外部内容推荐" valuePropName="checked">
-                    <Switch />
-                  </Form.Item>
-                  <Form.Item name="recommend.limit" label="每次推荐数量">
-                    <InputNumber min={1} max={50} style={{ width: 120 }} />
                   </Form.Item>
                 </Card>
               ),

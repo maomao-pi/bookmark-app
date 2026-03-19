@@ -224,4 +224,6 @@ export interface AiNewsItem {
   summary: string;
   source?: string;
   publishedAt?: string;
+  /** 推荐来源模型类型：search=联网搜索（链接真实有效），text=文本生成（链接可能无效） */
+  modelSource?: 'search' | 'text';
 }

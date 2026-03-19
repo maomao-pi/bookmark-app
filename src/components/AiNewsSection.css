@@ -53,6 +53,37 @@
   background: var(--bg-primary, #fff);
 }
 
+/* AI 查询加载状态（替代骨架屏） */
+.ai-news-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 16px;
+}
+
+.ai-news-loading-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #1e293b);
+  margin: 0;
+}
+
+.ai-news-loading-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #64748b);
+  margin: 0;
+  text-align: center;
+}
+
+/* 联网搜索模式标识 */
+.ai-news-search-tag {
+  font-size: 0.75rem;
+  border-radius: 6px;
+}
+
 .ai-news-empty {
   padding: 40px 8px;
   display: flex;
@@ -212,6 +243,14 @@
 [data-theme="dark"] .ai-news-skeleton {
   border-color: #374151;
   background: #1e293b;
+}
+
+[data-theme="dark"] .ai-news-loading-text {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .ai-news-loading-hint {
+  color: #94a3b8;
 }
 
 [data-theme="dark"] .ai-news-header {

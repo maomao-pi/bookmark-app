@@ -20,6 +20,13 @@ public class AiNewsItemVO {
     /** 来源网站名称（可为空） */
     private String source;
 
+    /**
+     * 推荐来源模型类型：
+     * "search" = 联网搜索模型（链接真实有效）
+     * "text"   = 文本生成模型（链接可能无效）
+     */
+    private String modelSource;
+
     public AiNewsItemVO() {}
 
     public AiNewsItemVO(String id, String title, String url, String summary, String source) {
@@ -44,4 +51,7 @@ public class AiNewsItemVO {
 
     public String getSource() { return source; }
     public void setSource(String source) { this.source = source; }
+
+    public String getModelSource() { return modelSource; }
+    public void setModelSource(String modelSource) { this.modelSource = modelSource; }
 }
