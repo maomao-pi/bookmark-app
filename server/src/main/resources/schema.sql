@@ -287,19 +287,6 @@ INSERT INTO system_setting (setting_key, setting_value, setting_group, descripti
 ('auth.qqAppId', '', 'auth', 'QQ AppID')
 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value);
 
--- 010-fix-ai-recommend: 补充 AI 模型配置键初始化（兼容新旧部署，INSERT IGNORE 不覆盖已有值）
-INSERT IGNORE INTO system_setting (setting_key, setting_value, setting_group, description) VALUES
-('ai.text.enabled', 'true', 'ai', 'AI 文本模型开关'),
-('ai.text.apiKey', '', 'ai', '文本模型 API Key'),
-('ai.text.baseUrl', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'ai', '文本模型 API 地址'),
-('ai.text.model', 'qwen3-plus', 'ai', '文本模型名称'),
-('ai.search.enabled', 'false', 'ai', 'AI 联网搜索模型开关'),
-('ai.search.apiKey', '', 'ai', '联网搜索模型 API Key'),
-('ai.search.baseUrl', 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'ai', '联网搜索模型 API 地址'),
-('ai.search.model', '', 'ai', '联网搜索模型名称（如 qwen3-search）'),
-('recommend.external.enabled', 'false', 'recommend', '外部内容推荐开关（联网搜索）'),
-('recommend.limit', '8', 'recommend', 'AI 推荐每次返回数量');
-
 -- 插入示例发现内容
 INSERT INTO discover_bookmark (category_id, title, url, description, favicon, source, tags, sort, status) VALUES
 (4, '阮一峰的网络日志', 'https://www.ruanyifeng.com/blog/', '知名科技博主，分享编程和技术文章', 'https://www.ruanyifeng.com/favicon.ico', '个人博客', '["技术","博客","前端"]', 1, 'visible'),

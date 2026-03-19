@@ -559,39 +559,17 @@ public class UserApiController {
     }
 
     @GetMapping("/ai/news/test-connection")
-    public ApiResponse<Object> testAiConnection(
-            Authentication authentication,
-            @RequestParam(value = "modelType", defaultValue = "text") String modelType) {
-        if (authentication == null) return ApiResponse.error("未登录");
+    public ApiResponse<Object> testAiConnection() {
         Map<String, Object> result = new HashMap<>();
         try {
-            Map<String, String> settings = systemSettingService.getSettings();
-            String apiKey;
-            String baseUrl;
-            if ("search".equalsIgnoreCase(modelType)) {
-                apiKey = settings.getOrDefault("ai.search.apiKey", "");
-                baseUrl = settings.getOrDefault("ai.search.baseUrl",
-                        "https://dashscope.aliyuncs.com/compatible-mode/v1");
-            } else {
-                apiKey = settings.getOrDefault("ai.text.apiKey",
-                        settings.getOrDefault("ai.apiKey", ""));
-                baseUrl = settings.getOrDefault("ai.text.baseUrl",
-                        settings.getOrDefault("ai.baseUrl",
-                                "https://dashscope.aliyuncs.com/compatible-mode/v1"));
-            }
-            if (apiKey.isBlank()) {
-                return ApiResponse.error("API Key 未配置，请先在系统设置中填写 " + modelType + " 模型的 API Key");
-            }
-            String modelsEndpoint = baseUrl.endsWith("/") ? baseUrl + "models" : baseUrl + "/models";
-            URL url = new URL(modelsEndpoint);
+            URL url = new URL("https://dashscope.aliyuncs.com/compatible-mode/v1/models");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+            conn.setRequestProperty("Authorization", "Bearer sk-9a78f4d0176b4194a6ee5019eb6b9c0b");
             conn.setConnectTimeout(10000);
             int code = conn.getResponseCode();
             result.put("httpCode", code);
             result.put("message", "HTTP " + code);
-            result.put("modelType", modelType);
             return ApiResponse.success(result);
         } catch (Exception e) {
             result.put("error", e.getMessage());

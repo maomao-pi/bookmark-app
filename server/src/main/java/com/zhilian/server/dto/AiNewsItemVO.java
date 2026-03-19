@@ -20,11 +20,7 @@ public class AiNewsItemVO {
     /** 来源网站名称（可为空） */
     private String source;
 
-    /**
-     * 推荐来源模型类型：
-     * "search" = 联网搜索模型（链接真实有效）
-     * "text"   = 文本生成模型（链接可能无效）
-     */
+    /** 模型来源: search=联网搜索, text=文本生成 */
     private String modelSource;
 
     public AiNewsItemVO() {}
