@@ -4,26 +4,19 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhilian.server.common.ErrorCode;
-import com.zhilian.server.entity.Admin;
 import com.zhilian.server.entity.Category;
 import com.zhilian.server.entity.DiscoverBookmark;
 import com.zhilian.server.entity.Bookmark;
-import com.zhilian.server.entity.User;
 import com.zhilian.server.exception.BizException;
-import com.zhilian.server.mapper.AdminMapper;
 import com.zhilian.server.mapper.CategoryMapper;
 import com.zhilian.server.mapper.DiscoverBookmarkMapper;
 import com.zhilian.server.mapper.BookmarkMapper;
-import com.zhilian.server.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class CategoryService {
@@ -34,31 +27,22 @@ public class CategoryService {
     private final CategoryMapper categoryMapper;
     private final BookmarkMapper bookmarkMapper;
     private final DiscoverBookmarkMapper discoverBookmarkMapper;
-    private final UserMapper userMapper;
-    private final AdminMapper adminMapper;
 
     public CategoryService(CategoryMapper categoryMapper, BookmarkMapper bookmarkMapper,
-                           DiscoverBookmarkMapper discoverBookmarkMapper,
-                           UserMapper userMapper,
-                           AdminMapper adminMapper) {
+                           DiscoverBookmarkMapper discoverBookmarkMapper) {
         this.categoryMapper = categoryMapper;
         this.bookmarkMapper = bookmarkMapper;
         this.discoverBookmarkMapper = discoverBookmarkMapper;
-        this.userMapper = userMapper;
-        this.adminMapper = adminMapper;
     }
     
-    public Page<Category> getCategoryList(int pageNum, int pageSize, String type, String creatorKeyword, String sortField, String sortOrder) {
+    public Page<Category> getCategoryList(int pageNum, int pageSize, String type, String sortField, String sortOrder) {
         Page<Category> page = new Page<>(pageNum, pageSize);
         LambdaQueryWrapper<Category> wrapper = new LambdaQueryWrapper<>();
         if (type != null && !type.isEmpty()) {
             wrapper.eq(Category::getType, type);
         }
-        applyCreatorFilter(wrapper, creatorKeyword);
         applySort(wrapper, sortField, sortOrder);
-        Page<Category> result = categoryMapper.selectPage(page, wrapper);
-        enrichCreatorNames(result.getRecords());
-        return result;
+        return categoryMapper.selectPage(page, wrapper);
     }
     
     public List<Category> getAllCategories(String type) {
@@ -79,7 +63,7 @@ public class CategoryService {
         return category;
     }
     
-    public Category createCategory(Category category, Long creatorId, String creatorType) {
+    public Category createCategory(Category category, Long userId) {
         if (category.getName() == null || category.getName().isBlank()) {
             throw new RuntimeException("name 必填");
         }
@@ -103,11 +87,8 @@ public class CategoryService {
 
         category.setName(category.getName().trim());
         category.setType(type);
-        category.setCreatedById(creatorId);
-        category.setCreatedByType(creatorType);
         category.setCreatedAt(LocalDateTime.now());
         categoryMapper.insert(category);
-        category.setCreatedByName(resolveCreatorName(category.getCreatedById(), category.getCreatedByType()));
         return category;
     }
     
@@ -134,7 +115,6 @@ public class CategoryService {
         if (category.getStatus() != null) existing.setStatus(category.getStatus());
         
         categoryMapper.updateById(existing);
-        existing.setCreatedByName(resolveCreatorName(existing.getCreatedById(), existing.getCreatedByType()));
         return existing;
     }
     
@@ -192,73 +172,13 @@ public class CategoryService {
         return deletedCount;
     }
 
-    private void applyCreatorFilter(LambdaQueryWrapper<Category> wrapper, String creatorKeyword) {
-        if (creatorKeyword == null || creatorKeyword.isBlank()) {
+    public void batchDelete(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
             return;
         }
-        List<Long> userIds = userMapper.selectList(new LambdaQueryWrapper<User>()
-                .and(w -> w.like(User::getUsername, creatorKeyword).or().like(User::getNickname, creatorKeyword)))
-                .stream()
-                .map(User::getId)
-                .toList();
-        List<Long> adminIds = adminMapper.selectList(new LambdaQueryWrapper<Admin>()
-                .like(Admin::getUsername, creatorKeyword))
-                .stream()
-                .map(Admin::getId)
-                .toList();
-        if (userIds.isEmpty() && adminIds.isEmpty()) {
-            wrapper.eq(Category::getId, -1L);
-            return;
+        for (Long id : ids) {
+            deleteCategory(id);
         }
-        wrapper.and(w -> {
-            boolean appended = false;
-            if (!userIds.isEmpty()) {
-                w.and(x -> x.eq(Category::getCreatedByType, "user").in(Category::getCreatedById, userIds));
-                appended = true;
-            }
-            if (!adminIds.isEmpty()) {
-                if (appended) {
-                    w.or();
-                }
-                w.and(x -> x.eq(Category::getCreatedByType, "admin").in(Category::getCreatedById, adminIds));
-            }
-        });
-    }
-
-    private void enrichCreatorNames(List<Category> categories) {
-        if (categories == null || categories.isEmpty()) {
-            return;
-        }
-        Map<Long, String> userNameMap = userMapper.selectList(new LambdaQueryWrapper<User>()
-                        .select(User::getId, User::getUsername))
-                .stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
-        Map<Long, String> adminNameMap = adminMapper.selectList(new LambdaQueryWrapper<Admin>()
-                        .select(Admin::getId, Admin::getUsername))
-                .stream()
-                .collect(Collectors.toMap(Admin::getId, Admin::getUsername, (a, b) -> a, java.util.HashMap::new));
-        categories.forEach(category -> category.setCreatedByName(resolveCreatorName(category.getCreatedById(), category.getCreatedByType(), userNameMap, adminNameMap)));
-    }
-
-    private String resolveCreatorName(Long creatorId, String creatorType) {
-        return resolveCreatorName(creatorId, creatorType,
-                userMapper.selectList(new LambdaQueryWrapper<User>().select(User::getId, User::getUsername)).stream()
-                        .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a)),
-                adminMapper.selectList(new LambdaQueryWrapper<Admin>().select(Admin::getId, Admin::getUsername)).stream()
-                        .collect(Collectors.toMap(Admin::getId, Admin::getUsername, (a, b) -> a)));
-    }
-
-    private String resolveCreatorName(Long creatorId, String creatorType, Map<Long, String> userNameMap, Map<Long, String> adminNameMap) {
-        if (creatorId == null || creatorType == null) {
-            return "-";
-        }
-        if ("user".equalsIgnoreCase(creatorType)) {
-            return userNameMap.getOrDefault(creatorId, "用户(" + creatorId + ")");
-        }
-        if ("admin".equalsIgnoreCase(creatorType)) {
-            return adminNameMap.getOrDefault(creatorId, "管理员(" + creatorId + ")");
-        }
-        return "-";
     }
 
     private void applySort(LambdaQueryWrapper<Category> wrapper, String sortField, String sortOrder) {

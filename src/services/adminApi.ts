@@ -206,6 +206,10 @@ export class AdminApi {
     return this.request<void>('DELETE', `/api/admin/categories/${id}`);
   }
 
+  batchDeleteCategories(ids: number[]) {
+    return this.request<void>('POST', '/api/admin/categories/batch-delete', ids);
+  }
+
   removeDuplicateCategories(type?: 'user' | 'discover') {
     return this.request<{ deleted: number }>('POST', `/api/admin/categories/remove-duplicates${buildQuery({ type })}`);
   }
@@ -329,6 +333,14 @@ export class AdminApi {
 
   deleteDiscoverContent(id: number) {
     return this.request<void>('DELETE', `/api/admin/contents/discover/${id}`);
+  }
+
+  batchDeleteUserContents(ids: number[]) {
+    return this.request<void>('POST', '/api/admin/contents/user/batch-delete', ids);
+  }
+
+  batchDeleteDiscoverContents(ids: number[]) {
+    return this.request<void>('POST', '/api/admin/contents/discover/batch-delete', ids);
   }
 
   getAllDiscoverBookmarks() {

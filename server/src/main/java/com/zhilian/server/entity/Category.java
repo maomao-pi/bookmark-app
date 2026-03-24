@@ -18,19 +18,12 @@ public class Category {
     private Long parentId;
     
     private String type;  // user, discover
-
-    private Long createdById;
-
-    private String createdByType;  // user, admin
     
     private Integer sort;
     
     private String status;  // visible, hidden
     
     private LocalDateTime createdAt;
-
-    @TableField(exist = false)
-    private String createdByName;
     
     @TableLogic
     private Integer deleted;

@@ -7,9 +7,9 @@ spring:
   
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/zhilian_fangzhou?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci
-    username: root
-    password: 100822mi.
+    url: jdbc:mysql://120.53.102.234:3306/zhilian_fangzhou?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: remote_user
+    password: a044f994f6232055
     hikari:
       maximum-pool-size: 10
   
@@ -17,20 +17,9 @@ spring:
     init:
       mode: never
   
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
-  
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
-    default-property-inclusion: non_null
-    generator:
-      write-numbers-as-strings: false
-    serialization:
-      write-dates-as-timestamps: false
 
 # MyBatis Plus 配置
 mybatis-plus:

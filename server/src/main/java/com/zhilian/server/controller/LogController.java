@@ -3,7 +3,6 @@ package com.zhilian.server.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhilian.server.dto.ApiResponse;
 import com.zhilian.server.dto.PageData;
-import com.zhilian.server.entity.Admin;
 import com.zhilian.server.entity.OperationLog;
 import com.zhilian.server.service.OperationLogService;
 import jakarta.validation.constraints.Max;
@@ -12,8 +11,10 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 
@@ -40,13 +41,5 @@ public class LogController {
             @RequestParam(required = false) @Pattern(regexp = "^(asc|desc|ascend|descend)$", message = "sortOrder 仅支持 asc/desc/ascend/descend") String sortOrder) {
         Page<OperationLog> page = operationLogService.getLogs(pageNum, pageSize, adminId, action, startTime, endTime, sortField, sortOrder);
         return ApiResponse.success(PageData.from(page));
-    }
-
-    @PostMapping("/{id}/revert")
-    public ApiResponse<Void> revertLog(@PathVariable @Positive(message = "id 必须大于 0") Long id,
-                                       Authentication authentication) {
-        Admin admin = (Admin) authentication.getPrincipal();
-        operationLogService.revertLog(id, admin.getId());
-        return ApiResponse.success();
     }
 }
