@@ -30,19 +30,10 @@ public class DiscoverBookmark {
     private Integer sort;
     
     private String status;  // visible, hidden
-
-    private Long createdById;
-
-    private String createdByType;  // user, admin
-
-    private Integer pinned;  // 0-否, 1-是
     
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;
-
-    @TableField(exist = false)
-    private String createdByName;
     
     @TableLogic
     private Integer deleted;

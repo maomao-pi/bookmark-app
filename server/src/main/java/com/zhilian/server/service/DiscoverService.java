@@ -3,22 +3,16 @@ package com.zhilian.server.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhilian.server.common.ErrorCode;
-import com.zhilian.server.entity.Admin;
 import com.zhilian.server.entity.DiscoverBookmark;
-import com.zhilian.server.entity.User;
 import com.zhilian.server.exception.BizException;
-import com.zhilian.server.mapper.AdminMapper;
 import com.zhilian.server.mapper.DiscoverBookmarkMapper;
-import com.zhilian.server.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
 
 @Service
 public class DiscoverService {
@@ -26,23 +20,17 @@ public class DiscoverService {
     private static final Set<String> ALLOWED_DISCOVER_STATUS = new HashSet<>(List.of("visible", "hidden"));
 
     private final DiscoverBookmarkMapper discoverBookmarkMapper;
-    private final UserMapper userMapper;
-    private final AdminMapper adminMapper;
 
-    public DiscoverService(DiscoverBookmarkMapper discoverBookmarkMapper, UserMapper userMapper, AdminMapper adminMapper) {
+    public DiscoverService(DiscoverBookmarkMapper discoverBookmarkMapper) {
         this.discoverBookmarkMapper = discoverBookmarkMapper;
-        this.userMapper = userMapper;
-        this.adminMapper = adminMapper;
     }
 
-    public Page<DiscoverBookmark> getDiscoverList(int pageNum, int pageSize, String keyword, Long categoryId, String status, String creatorKeyword,
+    public Page<DiscoverBookmark> getDiscoverList(int pageNum, int pageSize, String keyword, Long categoryId, String status,
                                                   String sortField, String sortOrder) {
         Page<DiscoverBookmark> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<DiscoverBookmark> wrapper = buildListWrapper(keyword, categoryId, status, creatorKeyword, sortField, sortOrder);
+        LambdaQueryWrapper<DiscoverBookmark> wrapper = buildListWrapper(keyword, categoryId, status, sortField, sortOrder);
 
-        Page<DiscoverBookmark> result = discoverBookmarkMapper.selectPage(page, wrapper);
-        enrichCreatorNames(result.getRecords());
-        return result;
+        return discoverBookmarkMapper.selectPage(page, wrapper);
     }
 
     public List<DiscoverBookmark> getPublicDiscoverList(String keyword, Long categoryId) {
@@ -55,14 +43,12 @@ public class DiscoverService {
         if (categoryId != null) {
             wrapper.eq(DiscoverBookmark::getCategoryId, categoryId);
         }
-        wrapper.orderByDesc(DiscoverBookmark::getPinned).orderByAsc(DiscoverBookmark::getSort);
-        List<DiscoverBookmark> items = discoverBookmarkMapper.selectList(wrapper);
-        enrichCreatorNames(items);
-        return items;
+        wrapper.orderByAsc(DiscoverBookmark::getSort);
+        return discoverBookmarkMapper.selectList(wrapper);
     }
 
     public String exportDiscoverAsCsv(String keyword, Long categoryId, String status, String sortField, String sortOrder) {
-        LambdaQueryWrapper<DiscoverBookmark> wrapper = buildListWrapper(keyword, categoryId, status, null, sortField, sortOrder);
+        LambdaQueryWrapper<DiscoverBookmark> wrapper = buildListWrapper(keyword, categoryId, status, sortField, sortOrder);
         List<DiscoverBookmark> discoverList = discoverBookmarkMapper.selectList(wrapper);
 
         StringJoiner joiner = new StringJoiner("\n");
@@ -84,7 +70,7 @@ public class DiscoverService {
         return joiner.toString();
     }
 
-    private LambdaQueryWrapper<DiscoverBookmark> buildListWrapper(String keyword, Long categoryId, String status, String creatorKeyword,
+    private LambdaQueryWrapper<DiscoverBookmark> buildListWrapper(String keyword, Long categoryId, String status,
                                                                   String sortField, String sortOrder) {
         LambdaQueryWrapper<DiscoverBookmark> wrapper = new LambdaQueryWrapper<>();
 
@@ -99,7 +85,6 @@ public class DiscoverService {
         if (status != null && !status.isBlank()) {
             wrapper.eq(DiscoverBookmark::getStatus, status);
         }
-        applyCreatorFilter(wrapper, creatorKeyword);
 
         applySort(wrapper, sortField, sortOrder);
         return wrapper;
@@ -113,7 +98,7 @@ public class DiscoverService {
         return discover;
     }
 
-    public DiscoverBookmark createDiscover(DiscoverBookmark discoverBookmark, Long creatorId, String creatorType) {
+    public DiscoverBookmark createDiscover(DiscoverBookmark discoverBookmark) {
         if (discoverBookmark.getCategoryId() == null || discoverBookmark.getCategoryId() <= 0) {
             throw new RuntimeException("categoryId 必填且必须大于 0");
         }
@@ -141,8 +126,6 @@ public class DiscoverService {
         }
 
         discoverBookmark.setUrl(normalizedUrl);
-        discoverBookmark.setCreatedById(creatorId);
-        discoverBookmark.setCreatedByType(creatorType);
         discoverBookmark.setCreatedAt(LocalDateTime.now());
         discoverBookmark.setUpdatedAt(LocalDateTime.now());
         if (discoverBookmark.getSort() == null) {
@@ -155,7 +138,6 @@ public class DiscoverService {
             discoverBookmark.setFavicon(buildFaviconUrl(normalizedUrl));
         }
         discoverBookmarkMapper.insert(discoverBookmark);
-        discoverBookmark.setCreatedByName(resolveCreatorName(discoverBookmark.getCreatedById(), discoverBookmark.getCreatedByType()));
         return discoverBookmark;
     }
 
@@ -183,11 +165,9 @@ public class DiscoverService {
         if (discoverBookmark.getTags() != null) existing.setTags(discoverBookmark.getTags());
         if (discoverBookmark.getSort() != null) existing.setSort(discoverBookmark.getSort());
         if (discoverBookmark.getStatus() != null) existing.setStatus(discoverBookmark.getStatus());
-        if (discoverBookmark.getPinned() != null) existing.setPinned(discoverBookmark.getPinned());
 
         existing.setUpdatedAt(LocalDateTime.now());
         discoverBookmarkMapper.updateById(existing);
-        existing.setCreatedByName(resolveCreatorName(existing.getCreatedById(), existing.getCreatedByType()));
         return existing;
     }
 
@@ -306,75 +286,6 @@ public class DiscoverService {
                 else wrapper.orderByDesc(DiscoverBookmark::getSort);
             }
         }
-    }
-
-    private void applyCreatorFilter(LambdaQueryWrapper<DiscoverBookmark> wrapper, String creatorKeyword) {
-        if (creatorKeyword == null || creatorKeyword.isBlank()) {
-            return;
-        }
-        List<Long> userIds = userMapper.selectList(new LambdaQueryWrapper<User>()
-                        .and(w -> w.like(User::getUsername, creatorKeyword).or().like(User::getNickname, creatorKeyword)))
-                .stream()
-                .map(User::getId)
-                .toList();
-        List<Long> adminIds = adminMapper.selectList(new LambdaQueryWrapper<Admin>()
-                        .like(Admin::getUsername, creatorKeyword))
-                .stream()
-                .map(Admin::getId)
-                .toList();
-        if (userIds.isEmpty() && adminIds.isEmpty()) {
-            wrapper.eq(DiscoverBookmark::getId, -1L);
-            return;
-        }
-        wrapper.and(w -> {
-            boolean appended = false;
-            if (!userIds.isEmpty()) {
-                w.and(x -> x.eq(DiscoverBookmark::getCreatedByType, "user").in(DiscoverBookmark::getCreatedById, userIds));
-                appended = true;
-            }
-            if (!adminIds.isEmpty()) {
-                if (appended) {
-                    w.or();
-                }
-                w.and(x -> x.eq(DiscoverBookmark::getCreatedByType, "admin").in(DiscoverBookmark::getCreatedById, adminIds));
-            }
-        });
-    }
-
-    private void enrichCreatorNames(List<DiscoverBookmark> items) {
-        if (items == null || items.isEmpty()) {
-            return;
-        }
-        Map<Long, String> userNames = userMapper.selectList(new LambdaQueryWrapper<User>().select(User::getId, User::getUsername))
-                .stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
-        Map<Long, String> adminNames = adminMapper.selectList(new LambdaQueryWrapper<Admin>().select(Admin::getId, Admin::getUsername))
-                .stream()
-                .collect(Collectors.toMap(Admin::getId, Admin::getUsername, (a, b) -> a));
-        items.forEach(item -> item.setCreatedByName(resolveCreatorName(item.getCreatedById(), item.getCreatedByType(), userNames, adminNames)));
-    }
-
-    private String resolveCreatorName(Long creatorId, String creatorType) {
-        Map<Long, String> userNames = userMapper.selectList(new LambdaQueryWrapper<User>().select(User::getId, User::getUsername))
-                .stream()
-                .collect(Collectors.toMap(User::getId, User::getUsername, (a, b) -> a));
-        Map<Long, String> adminNames = adminMapper.selectList(new LambdaQueryWrapper<Admin>().select(Admin::getId, Admin::getUsername))
-                .stream()
-                .collect(Collectors.toMap(Admin::getId, Admin::getUsername, (a, b) -> a));
-        return resolveCreatorName(creatorId, creatorType, userNames, adminNames);
-    }
-
-    private String resolveCreatorName(Long creatorId, String creatorType, Map<Long, String> userNames, Map<Long, String> adminNames) {
-        if (creatorId == null || creatorType == null) {
-            return "-";
-        }
-        if ("user".equalsIgnoreCase(creatorType)) {
-            return userNames.getOrDefault(creatorId, "用户(" + creatorId + ")");
-        }
-        if ("admin".equalsIgnoreCase(creatorType)) {
-            return adminNames.getOrDefault(creatorId, "管理员(" + creatorId + ")");
-        }
-        return "-";
     }
 
     private String csvValue(Object value) {

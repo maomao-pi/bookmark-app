@@ -20,6 +20,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -43,10 +44,9 @@ public class ContentController {
             @RequestParam(required = false) @Positive(message = "bookmarkId 必须大于 0") Long bookmarkId,
             @RequestParam(required = false) @Pattern(regexp = "^(article|video|document|link)$", message = "type 仅支持 article/video/document/link") String type,
             @RequestParam(required = false) Long userId,
-            @RequestParam(required = false) String creatorKeyword,
             @RequestParam(required = false) String sortField,
             @RequestParam(required = false) @Pattern(regexp = "^(asc|desc|ascend|descend)$", message = "sortOrder 仅支持 asc/desc/ascend/descend") String sortOrder) {
-        Page<Article> page = articleService.getUserContentList(pageNum, pageSize, keyword, bookmarkId, type, userId, creatorKeyword, sortField, sortOrder);
+        Page<Article> page = articleService.getUserContentList(pageNum, pageSize, keyword, bookmarkId, type, userId, sortField, sortOrder);
         return ApiResponse.success(PageData.from(page));
     }
 
@@ -57,10 +57,9 @@ public class ContentController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) @Positive(message = "discoverBookmarkId 必须大于 0") Long discoverBookmarkId,
             @RequestParam(required = false) @Pattern(regexp = "^(article|video|document|link)$", message = "type 仅支持 article/video/document/link") String type,
-            @RequestParam(required = false) String creatorKeyword,
             @RequestParam(required = false) String sortField,
             @RequestParam(required = false) @Pattern(regexp = "^(asc|desc|ascend|descend)$", message = "sortOrder 仅支持 asc/desc/ascend/descend") String sortOrder) {
-        Page<Article> page = articleService.getDiscoverContentList(pageNum, pageSize, keyword, discoverBookmarkId, type, creatorKeyword, sortField, sortOrder);
+        Page<Article> page = articleService.getDiscoverContentList(pageNum, pageSize, keyword, discoverBookmarkId, type, sortField, sortOrder);
         return ApiResponse.success(PageData.from(page));
     }
 
@@ -181,8 +180,7 @@ public class ContentController {
         }
         articleService.deleteArticle(id);
         Admin admin = (Admin) authentication.getPrincipal();
-        operationLogService.logRevocable(admin.getId(), "DELETE_USER_CONTENT", "article", id, request.getRemoteAddr(), "success",
-                Map.of("title", existing.getTitle()));
+        operationLogService.log(admin.getId(), "DELETE_USER_CONTENT", "article", id, request.getRemoteAddr(), "success");
         return ApiResponse.success();
     }
 
@@ -196,8 +194,29 @@ public class ContentController {
         }
         articleService.deleteArticle(id);
         Admin admin = (Admin) authentication.getPrincipal();
-        operationLogService.logRevocable(admin.getId(), "DELETE_DISCOVER_CONTENT", "article", id, request.getRemoteAddr(), "success",
-                Map.of("title", existing.getTitle()));
+        operationLogService.log(admin.getId(), "DELETE_DISCOVER_CONTENT", "article", id, request.getRemoteAddr(), "success");
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/user/batch-delete")
+    public ApiResponse<Void> batchDeleteUserContent(@RequestBody List<Long> ids,
+                                                    Authentication authentication,
+                                                    HttpServletRequest request) {
+        articleService.batchDelete(ids);
+        Admin admin = (Admin) authentication.getPrincipal();
+        operationLogService.log(admin.getId(), "BATCH_DELETE_USER_CONTENT", "article", null, request.getRemoteAddr(), "success",
+                Map.of("ids", ids.toString()));
+        return ApiResponse.success();
+    }
+
+    @PostMapping("/discover/batch-delete")
+    public ApiResponse<Void> batchDeleteDiscoverContent(@RequestBody List<Long> ids,
+                                                       Authentication authentication,
+                                                       HttpServletRequest request) {
+        articleService.batchDelete(ids);
+        Admin admin = (Admin) authentication.getPrincipal();
+        operationLogService.log(admin.getId(), "BATCH_DELETE_DISCOVER_CONTENT", "article", null, request.getRemoteAddr(), "success",
+                Map.of("ids", ids.toString()));
         return ApiResponse.success();
     }
 }

@@ -48,6 +48,7 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingArticle, setEditingArticle] = useState<ArticleItem | null>(null);
   const [form] = Form.useForm();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const loadBookmarks = useCallback(async () => {
     if (!api) return;
@@ -156,6 +157,34 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
     } catch {
       message.error('置顶操作失败');
     }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的内容');
+      return;
+    }
+    Modal.confirm({
+      title: `确定删除选中的 ${selectedRowKeys.length} 条内容吗？`,
+      okText: '确定',
+      cancelText: '取消',
+      onOk: async () => {
+        if (!api) return;
+        try {
+          await api.batchDeleteUserContents(selectedRowKeys as number[]);
+          message.success('批量删除成功');
+          setSelectedRowKeys([]);
+          loadData(pagination.current);
+        } catch (error) {
+          message.error('批量删除失败');
+        }
+      },
+    });
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
   };
 
   const columns = [
@@ -315,9 +344,14 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
             allowClear
           />
         </Space>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          新增内容
-        </Button>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增内容
+          </Button>
+          <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete} disabled={selectedRowKeys.length === 0}>
+            批量删除{selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ''}
+          </Button>
+        </Space>
       </div>
 
       <Table
@@ -334,6 +368,7 @@ function UserContentTab({ api }: { api: AdminApi | null }) {
         }}
         scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
+        rowSelection={rowSelection}
       />
 
       <Modal
@@ -389,6 +424,7 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingArticle, setEditingArticle] = useState<ArticleItem | null>(null);
   const [form] = Form.useForm();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const loadDiscoverBookmarks = useCallback(async () => {
     if (!api) return;
@@ -497,6 +533,34 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
     } catch {
       message.error('置顶操作失败');
     }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的内容');
+      return;
+    }
+    Modal.confirm({
+      title: `确定删除选中的 ${selectedRowKeys.length} 条内容吗？`,
+      okText: '确定',
+      cancelText: '取消',
+      onOk: async () => {
+        if (!api) return;
+        try {
+          await api.batchDeleteDiscoverContents(selectedRowKeys as number[]);
+          message.success('批量删除成功');
+          setSelectedRowKeys([]);
+          loadData(pagination.current);
+        } catch (error) {
+          message.error('批量删除失败');
+        }
+      },
+    });
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
   };
 
   const columns = [
@@ -656,9 +720,14 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
             allowClear
           />
         </Space>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          新增内容
-        </Button>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增内容
+          </Button>
+          <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete} disabled={selectedRowKeys.length === 0}>
+            批量删除{selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ''}
+          </Button>
+        </Space>
       </div>
 
       <Table
@@ -675,6 +744,7 @@ function DiscoverContentTab({ api }: { api: AdminApi | null }) {
         }}
         scroll={{ x: 'max-content' }}
         onChange={handleTableChange}
+        rowSelection={rowSelection}
       />
 
       <Modal

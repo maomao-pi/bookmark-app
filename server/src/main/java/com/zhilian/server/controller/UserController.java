@@ -99,4 +99,20 @@ public class UserController {
                 Map.of("status", status));
         return ApiResponse.success();
     }
+
+    @PutMapping("/{id}/password")
+    public ApiResponse<Void> resetPassword(@PathVariable @Positive(message = "id 必须大于 0") Long id,
+                                           @RequestBody Map<String, String> request,
+                                           Authentication authentication,
+                                           HttpServletRequest httpRequest) {
+        String password = request.get("password");
+        if (password == null || password.isBlank()) {
+            throw new RuntimeException("password 必填");
+        }
+        userService.resetPassword(id, password);
+        Admin admin = (Admin) authentication.getPrincipal();
+        operationLogService.log(admin.getId(), "RESET_USER_PASSWORD", "user", id, httpRequest.getRemoteAddr(), "success",
+                Map.of("username", userService.getUserById(id).getUsername()));
+        return ApiResponse.success();
+    }
 }

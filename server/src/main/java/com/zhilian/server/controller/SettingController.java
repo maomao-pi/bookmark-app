@@ -4,7 +4,6 @@ import com.zhilian.server.dto.AiTestRequest;
 import com.zhilian.server.dto.ApiResponse;
 import com.zhilian.server.dto.SystemSettingsUpdateRequest;
 import com.zhilian.server.entity.Admin;
-import com.zhilian.server.service.AiNewsService;
 import com.zhilian.server.service.OperationLogService;
 import com.zhilian.server.service.SystemSettingService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,14 +22,10 @@ public class SettingController {
 
     private final SystemSettingService systemSettingService;
     private final OperationLogService operationLogService;
-    private final AiNewsService aiNewsService;
 
-    public SettingController(SystemSettingService systemSettingService,
-                             OperationLogService operationLogService,
-                             AiNewsService aiNewsService) {
+    public SettingController(SystemSettingService systemSettingService, OperationLogService operationLogService) {
         this.systemSettingService = systemSettingService;
         this.operationLogService = operationLogService;
-        this.aiNewsService = aiNewsService;
     }
 
     @GetMapping
@@ -43,8 +38,6 @@ public class SettingController {
                                                            Authentication authentication,
                                                            HttpServletRequest httpRequest) {
         Map<String, String> updated = systemSettingService.updateSettings(request.getSettings());
-        // 保存设置后立即清除AI推荐缓存，确保用户端下次请求使用最新的 recommend.limit 等配置
-        aiNewsService.clearCache();
         Admin admin = (Admin) authentication.getPrincipal();
         operationLogService.log(admin.getId(), "UPDATE_SETTINGS", "system_setting", null, httpRequest.getRemoteAddr(), "success",
                 Map.of("size", request.getSettings().size()));

@@ -21,6 +21,7 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
   const [form] = Form.useForm();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   const loadData = useCallback(async (page = 1) => {
     if (!api) return;
@@ -123,6 +124,34 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
     } catch (error) {
       message.error('操作失败');
     }
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的分类');
+      return;
+    }
+    Modal.confirm({
+      title: `确定删除选中的 ${selectedRowKeys.length} 个分类吗？`,
+      okText: '确定',
+      cancelText: '取消',
+      onOk: async () => {
+        if (!api) return;
+        try {
+          await api.batchDeleteCategories(selectedRowKeys as number[]);
+          message.success('批量删除成功');
+          setSelectedRowKeys([]);
+          loadData(pagination.current);
+        } catch (error) {
+          message.error('批量删除失败');
+        }
+      },
+    });
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
   };
 
   const columns = [
@@ -261,6 +290,9 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
           <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
             新增分类
           </Button>
+          <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete} disabled={selectedRowKeys.length === 0}>
+            批量删除{selectedRowKeys.length > 0 ? ` (${selectedRowKeys.length})` : ''}
+          </Button>
         </Space>
       </div>
 
@@ -288,6 +320,7 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
         size="small"
         scroll={{ x: 'max-content' }}
         rowClassName={() => 'category-table-row'}
+        rowSelection={rowSelection}
       />
 
       <Modal
