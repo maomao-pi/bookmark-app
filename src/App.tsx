@@ -73,6 +73,7 @@ function App() {
   
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [pendingCategoryForBookmark, setPendingCategoryForBookmark] = useState(false);
   
   const [categoryManageModalOpen, setCategoryManageModalOpen] = useState(false);
   
@@ -115,6 +116,7 @@ function App() {
   };
 
   const handleSaveBookmark = async (data: BookmarkFormData) => {
+    console.log('handleSaveBookmark called with:', data, 'editingBookmark:', editingBookmark);
     if (!editingBookmark && isDuplicate(data.url)) {
       message.error('该网址已存在，请勿重复添加');
       return;
@@ -125,6 +127,7 @@ function App() {
         message.error('该网址已存在，请勿重复添加');
         return;
       }
+      console.log('Calling updateBookmark for editing bookmark, categoryId:', data.categoryId);
       await updateBookmark(editingBookmark.id, data);
       message.success('收藏已更新');
     } else {
@@ -155,6 +158,7 @@ function App() {
   };
 
   const handleAddCategory = () => {
+    setPendingCategoryForBookmark(true);
     setEditingCategory(null);
     setCategoryModalOpen(true);
   };
@@ -169,16 +173,23 @@ function App() {
     if (editingCategory) {
       updateCategory(editingCategory.id, name);
       message.success('分类已更新');
+      setCategoryModalOpen(false);
+      setEditingCategory(null);
     } else {
       if (categories.some(c => c.name === name)) {
         message.error('分类名称已存在');
         return;
       }
-      addCategory(name);
-      message.success('分类已添加');
+      addCategory(name).then(() => {
+        message.success('分类已添加');
+        setCategoryModalOpen(false);
+        setEditingCategory(null);
+        if (pendingCategoryForBookmark) {
+          setPendingCategoryForBookmark(false);
+          setBookmarkModalOpen(true);
+        }
+      });
     }
-    setCategoryModalOpen(false);
-    setEditingCategory(null);
   };
 
   const handleDeleteCategory = (category: Category) => {

@@ -36,10 +36,10 @@ export const publicSettingsApi = {
   async getAiSettings(): Promise<AiSettings> {
     const data = await fetchJson<Record<string, string>>('/api/settings/ai');
     return {
-      enabled: data['ai.enabled'] === 'true',
-      apiKey: data['ai.apiKey'] || '',
-      baseUrl: data['ai.baseUrl'] || 'https://open.bigmodel.cn/api/paas/v4',
-      model: data['ai.model'] || 'glm-4',
+      enabled: data['ai.text.enabled'] === 'true' || data['ai.enabled'] === 'true',
+      apiKey: data['ai.text.apiKey'] || data['ai.apiKey'] || '',
+      baseUrl: data['ai.text.baseUrl'] || data['ai.baseUrl'] || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: data['ai.text.model'] || data['ai.model'] || 'qwen3-plus',
     };
   },
 };

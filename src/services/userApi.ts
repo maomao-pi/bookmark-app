@@ -192,14 +192,22 @@ export const userApi = {
 
   async updateBookmark(id: string, bookmark: Partial<Bookmark>): Promise<Bookmark> {
     const tagsJson = bookmark.tags && bookmark.tags.length > 0 ? JSON.stringify(bookmark.tags) : '[]';
+    const categoryIdValue = bookmark.categoryId ? parseInt(bookmark.categoryId) : undefined;
+    console.log('updateBookmark request:', {
+      id,
+      categoryId: bookmark.categoryId,
+      categoryIdValue,
+      tagsJson,
+    });
     const api = await request<ApiBookmark>('PUT', `/api/user/bookmarks/${id}`, {
       title: bookmark.title,
       url: bookmark.url,
       description: bookmark.description,
-      categoryId: bookmark.categoryId ? parseInt(bookmark.categoryId) : undefined,
+      categoryId: categoryIdValue,
       favicon: bookmark.favicon || '',
       tags: tagsJson,
     });
+    console.log('updateBookmark response:', api);
     return transformBookmark(api);
   },
 

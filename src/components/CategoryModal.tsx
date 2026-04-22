@@ -6,10 +6,12 @@ interface CategoryModalProps {
   categoryName?: string;
   onSave: (name: string) => void;
   onCancel: () => void;
+  onCreated?: () => void;
 }
 
-export function CategoryModal({ open, categoryName, onSave, onCancel }: CategoryModalProps) {
+export function CategoryModal({ open, categoryName, onSave, onCancel, onCreated }: CategoryModalProps) {
   const [form] = Form.useForm();
+  const isEditing = Boolean(categoryName);
 
   useEffect(() => {
     if (open) {
@@ -21,6 +23,9 @@ export function CategoryModal({ open, categoryName, onSave, onCancel }: Category
     try {
       const values = await form.validateFields();
       onSave(values.name.trim());
+      if (!isEditing && onCreated) {
+        onCreated();
+      }
     } catch {
       // 表单验证失败
     }

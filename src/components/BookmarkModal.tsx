@@ -39,7 +39,7 @@ export function BookmarkModal({
         title: bookmark.title,
         url: bookmark.url,
         description: bookmark.description,
-        categoryId: bookmark.categoryId || undefined,
+        categoryId: bookmark.categoryId === '' || bookmark.categoryId === null || bookmark.categoryId === undefined ? null : bookmark.categoryId,
         favicon: bookmark.favicon || '',
         tags: bookmark.tags || [],
         thumbnail: bookmark.thumbnail || ''
@@ -48,7 +48,7 @@ export function BookmarkModal({
         title: '',
         url: '',
         description: '',
-        categoryId: undefined,
+        categoryId: null,
         favicon: '',
         tags: [],
         thumbnail: ''
@@ -57,17 +57,19 @@ export function BookmarkModal({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      console.log('handleSubmit values.categoryId:', values.categoryId, 'type:', typeof values.categoryId);
       
       const bookmarkData: BookmarkFormData = {
         title: values.title?.trim() || '',
         url: values.url?.trim() || '',
         description: values.description?.trim() || '',
-        categoryId: values.categoryId || null,
+        categoryId: values.categoryId === '' || values.categoryId === undefined ? null : values.categoryId,
         favicon: values.favicon?.trim() || '',
         tags: Array.isArray(values.tags) ? values.tags.filter((t: string) => t?.trim()).map((t: string) => t.trim()) : [],
         thumbnail: values.thumbnail?.trim() || ''
       };
       
+      console.log('handleSubmit bookmarkData.categoryId:', bookmarkData.categoryId);
       onSave(bookmarkData);
     } catch {
       // 表单验证失败
@@ -414,6 +416,10 @@ export function BookmarkModal({
               options={[{ label: '无分类', value: '' }, ...categoryOptions]}
               style={{ flex: 1 }}
               allowClear
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
             />
             <Button onClick={onAddCategory}>新建</Button>
           </div>

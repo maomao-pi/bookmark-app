@@ -71,10 +71,20 @@ public class BookmarkService {
 
         validateUpdateRequest(bookmark);
         
+        System.out.println("=== updateBookmark debug ===");
+        System.out.println("id: " + id);
+        System.out.println("bookmark.categoryId: " + bookmark.getCategoryId());
+        System.out.println("existing.categoryId (before): " + existing.getCategoryId());
+        
         if (bookmark.getTitle() != null) existing.setTitle(bookmark.getTitle());
         if (bookmark.getUrl() != null) existing.setUrl(bookmark.getUrl());
         if (bookmark.getDescription() != null) existing.setDescription(bookmark.getDescription());
-        if (bookmark.getCategoryId() != null) existing.setCategoryId(bookmark.getCategoryId());
+        if (bookmark.getCategoryId() != null) {
+            System.out.println("Updating categoryId to: " + bookmark.getCategoryId());
+            existing.setCategoryId(bookmark.getCategoryId());
+        } else {
+            System.out.println("categoryId is null, not updating");
+        }
         if (bookmark.getTags() != null) {
             existing.setTags(bookmark.getTags().isBlank() ? "[]" : bookmark.getTags());
         }
