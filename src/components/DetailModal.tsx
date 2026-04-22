@@ -3,6 +3,7 @@ import { CopyOutlined, LinkOutlined, PlusOutlined, EditOutlined, DeleteOutlined,
 import type { Bookmark, Article, BookmarkAnalysisResult } from '../types';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { userApi } from '../services/userApi';
+import { publicSettingsApi } from '../services/publicSettingsApi';
 import { NoteSection } from './NoteSection';
 import './DetailModal.css';
 
@@ -37,6 +38,13 @@ export function DetailModal({
   const [activeContentTab, setActiveContentTab] = useState<string>('article');
   const [localArticles, setLocalArticles] = useState<Article[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [aiModelName, setAiModelName] = useState<string>('AI');
+
+  useEffect(() => {
+    publicSettingsApi.getAiSettings().then(ai => {
+      setAiModelName(ai.model || 'AI');
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (open && bookmark) {
@@ -370,7 +378,7 @@ export function DetailModal({
                 <RobotOutlined style={{ marginRight: 8 }} />
                 AI 智能分析
               </span>
-              <Tag color="purple">GLM 智谱</Tag>
+              <Tag color="purple">{aiModelName}</Tag>
             </div>
 
             <div className="ai-tabs-container">

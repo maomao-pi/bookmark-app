@@ -2,13 +2,17 @@ package com.zhilian.server.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhilian.server.dto.ApiResponse;
+import com.zhilian.server.dto.BookmarkAnalysisResult;
 import com.zhilian.server.entity.Article;
 import com.zhilian.server.entity.Bookmark;
 import com.zhilian.server.entity.Category;
+import com.zhilian.server.entity.Note;
 import com.zhilian.server.entity.User;
 import com.zhilian.server.service.ArticleService;
+import com.zhilian.server.service.BookmarkAnalyzeService;
 import com.zhilian.server.service.BookmarkService;
 import com.zhilian.server.service.CategoryService;
+import com.zhilian.server.service.NoteService;
 import com.zhilian.server.service.UserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -30,13 +34,18 @@ public class UserApiController {
     private final CategoryService categoryService;
     private final BookmarkService bookmarkService;
     private final ArticleService articleService;
+    private final BookmarkAnalyzeService bookmarkAnalyzeService;
+    private final NoteService noteService;
     
     public UserApiController(UserService userService, CategoryService categoryService,
-                            BookmarkService bookmarkService, ArticleService articleService) {
+                            BookmarkService bookmarkService, ArticleService articleService,
+                            BookmarkAnalyzeService bookmarkAnalyzeService, NoteService noteService) {
         this.userService = userService;
         this.categoryService = categoryService;
         this.bookmarkService = bookmarkService;
         this.articleService = articleService;
+        this.bookmarkAnalyzeService = bookmarkAnalyzeService;
+        this.noteService = noteService;
     }
     
     @PostMapping("/register")
@@ -202,6 +211,106 @@ public class UserApiController {
         return ApiResponse.success(created);
     }
     
+    @PostMapping("/bookmarks/{id}/analyze")
+    public ApiResponse<BookmarkAnalysisResult> analyzeBookmark(Authentication authentication, @PathVariable Long id) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        Object principal = authentication.getPrincipal();
+        Long userId;
+        if (principal instanceof String) {
+            userId = Long.parseLong((String) principal);
+        } else if (principal instanceof User) {
+            userId = ((User) principal).getId();
+        } else {
+            return ApiResponse.error("未登录");
+        }
+        
+        Bookmark bookmark = bookmarkService.getBookmarkById(id);
+        if (bookmark == null) {
+            return ApiResponse.error("收藏不存在");
+        }
+        
+        List<Article> articles = articleService.getArticlesByBookmarkId(id);
+        BookmarkAnalysisResult result = bookmarkAnalyzeService.analyzeBookmark(bookmark, articles, userId);
+        return ApiResponse.success(result);
+    }
+
+    @GetMapping("/bookmarks/{bookmarkId}/notes")
+    public ApiResponse<List<Note>> getNotes(Authentication authentication, @PathVariable Long bookmarkId) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        Object principal = authentication.getPrincipal();
+        Long userId;
+        if (principal instanceof String) {
+            userId = Long.parseLong((String) principal);
+        } else if (principal instanceof User) {
+            userId = ((User) principal).getId();
+        } else {
+            return ApiResponse.error("未登录");
+        }
+        List<Note> notes = noteService.getNotes(bookmarkId, userId);
+        return ApiResponse.success(notes);
+    }
+
+    @PostMapping("/bookmarks/{bookmarkId}/notes")
+    public ApiResponse<Note> createNote(Authentication authentication, @PathVariable Long bookmarkId, @RequestBody NoteRequest request) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        Object principal = authentication.getPrincipal();
+        Long userId;
+        if (principal instanceof String) {
+            userId = Long.parseLong((String) principal);
+        } else if (principal instanceof User) {
+            userId = ((User) principal).getId();
+        } else {
+            return ApiResponse.error("未登录");
+        }
+        Note note = noteService.createNote(bookmarkId, userId, request.content);
+        return ApiResponse.success(note);
+    }
+
+    @PutMapping("/bookmarks/{bookmarkId}/notes/{noteId}")
+    public ApiResponse<Void> updateNote(Authentication authentication, @PathVariable Long bookmarkId, @PathVariable Long noteId, @RequestBody NoteRequest request) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        Object principal = authentication.getPrincipal();
+        Long userId;
+        if (principal instanceof String) {
+            userId = Long.parseLong((String) principal);
+        } else if (principal instanceof User) {
+            userId = ((User) principal).getId();
+        } else {
+            return ApiResponse.error("未登录");
+        }
+        noteService.updateNote(noteId, userId, request.content);
+        return ApiResponse.success(null);
+    }
+
+    @DeleteMapping("/bookmarks/{bookmarkId}/notes/{noteId}")
+    public ApiResponse<Void> deleteNote(Authentication authentication, @PathVariable Long bookmarkId, @PathVariable Long noteId) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        Object principal = authentication.getPrincipal();
+        Long userId;
+        if (principal instanceof String) {
+            userId = Long.parseLong((String) principal);
+        } else if (principal instanceof User) {
+            userId = ((User) principal).getId();
+        } else {
+            return ApiResponse.error("未登录");
+        }
+        noteService.deleteNote(noteId, userId);
+        return ApiResponse.success(null);
+    }
+
+    public static class NoteRequest {
+        public String content;
+    }
     public static class LoginRequest {
         @NotBlank(message = "用户名不能为空")
         public String username;
