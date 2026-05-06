@@ -322,22 +322,49 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
   animation: fadeInUp 0.5s ease;
 }
 
-/* Category Manage Item */
+/* 分类管理抽屉 */
+.category-manage-drawer .ant-drawer-body {
+  padding-top: 12px;
+}
+
+.category-manage-list .ant-list-item {
+  padding: 12px 0;
+}
+
 .category-manage-item {
-  padding: 12px 16px !important;
-  background: var(--bg-tag);
-  border-radius: 8px;
-  margin-bottom: 8px;
+  padding: 12px 14px !important;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.06));
+  border-radius: 10px;
+  background: transparent;
+  align-items: flex-start;
+}
+
+[data-theme="dark"] .category-manage-item {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.category-manage-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary, #1a1815);
+}
+
+.category-manage-count {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.category-manage-item .ant-list-item-action {
+  margin-inline-start: 12px;
 }
 
 .category-manage-item .ant-list-item-meta-title {
-  margin-bottom: 0;
-  font-weight: 500;
+  margin-bottom: 4px;
 }
 
 .category-manage-item .ant-list-item-meta-description {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+  margin-bottom: 0;
 }
 
 .empty-categories {

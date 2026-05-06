@@ -25,6 +25,7 @@ type PageType = 'home' | 'discover';
 function App() {
   const {
     categories,
+    bookmarks,
     searchQuery,
     categoryFilter,
     setSearchQuery,
@@ -116,7 +117,6 @@ function App() {
   };
 
   const handleSaveBookmark = async (data: BookmarkFormData) => {
-    console.log('handleSaveBookmark called with:', data, 'editingBookmark:', editingBookmark);
     if (!editingBookmark && isDuplicate(data.url)) {
       message.error('该网址已存在，请勿重复添加');
       return;
@@ -127,7 +127,6 @@ function App() {
         message.error('该网址已存在，请勿重复添加');
         return;
       }
-      console.log('Calling updateBookmark for editing bookmark, categoryId:', data.categoryId);
       await updateBookmark(editingBookmark.id, data);
       message.success('收藏已更新');
     } else {
@@ -157,8 +156,8 @@ function App() {
     setDetailModalOpen(true);
   };
 
-  const handleAddCategory = () => {
-    setPendingCategoryForBookmark(true);
+  const handleAddCategory = (returnToBookmark = false) => {
+    setPendingCategoryForBookmark(returnToBookmark);
     setEditingCategory(null);
     setCategoryModalOpen(true);
   };
@@ -169,32 +168,61 @@ function App() {
     setCategoryModalOpen(true);
   };
 
-  const handleSaveCategory = (name: string) => {
+  const handleSaveCategory = async (name: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      message.error('分类名称不能为空');
+      return;
+    }
+
     if (editingCategory) {
-      updateCategory(editingCategory.id, name);
-      message.success('分类已更新');
-      setCategoryModalOpen(false);
-      setEditingCategory(null);
-    } else {
-      if (categories.some(c => c.name === name)) {
+      const duplicate = categories.some(c => c.id !== editingCategory.id && c.name === trimmedName);
+      if (duplicate) {
         message.error('分类名称已存在');
         return;
       }
-      addCategory(name).then(() => {
-        message.success('分类已添加');
-        setCategoryModalOpen(false);
-        setEditingCategory(null);
-        if (pendingCategoryForBookmark) {
-          setPendingCategoryForBookmark(false);
-          setBookmarkModalOpen(true);
-        }
-      });
+
+      const updated = await updateCategory(editingCategory.id, trimmedName);
+      if (!updated) {
+        message.error('分类更新失败，请重试');
+        return;
+      }
+      setCategoryFilter(updated.id);
+      message.success(`分类已更新，已切换到「${updated.name}」`);
+      setCategoryModalOpen(false);
+      setEditingCategory(null);
+      return;
+    }
+
+    if (categories.some(c => c.name === trimmedName)) {
+      message.error('分类名称已存在');
+      return;
+    }
+
+    const created = await addCategory(trimmedName);
+    if (!created) {
+      message.error('分类创建失败，请重试');
+      return;
+    }
+
+    setCategoryFilter(created.id);
+    message.success(`分类已添加，已切换到「${created.name}」`);
+    setCategoryModalOpen(false);
+    setEditingCategory(null);
+    if (pendingCategoryForBookmark) {
+      setPendingCategoryForBookmark(false);
+      setBookmarkModalOpen(true);
     }
   };
 
-  const handleDeleteCategory = (category: Category) => {
-    deleteCategory(category.id);
-    message.success('分类已删除');
+  const handleDeleteCategory = async (category: Category) => {
+    await deleteCategory(category.id);
+    if (categoryFilter === category.id) {
+      setCategoryFilter('');
+      message.success(`分类「${category.name}」已删除，已切换到全部`);
+      return;
+    }
+    message.success(`分类「${category.name}」已删除`);
   };
 
   const handleAddArticle = (type: 'article' | 'video' | 'document' | 'link' = 'article') => {
@@ -369,9 +397,11 @@ function App() {
             <Empty
               className="empty-state"
               description={
-                searchQuery || categoryFilter
+                searchQuery
                   ? '没有找到匹配的收藏'
-                  : '还没有收藏'
+                  : categoryFilter
+                    ? '当前分类暂无收藏'
+                    : '还没有收藏'
               }
             >
               {!searchQuery && !categoryFilter && (
@@ -580,6 +610,7 @@ function App() {
           open={bookmarkModalOpen}
           bookmark={editingBookmark}
           categories={categories}
+          categoryCount={categories.length}
           onSave={handleSaveBookmark}
           onCancel={() => {
             setBookmarkModalOpen(false);
@@ -587,7 +618,7 @@ function App() {
           }}
           onAddCategory={() => {
             setBookmarkModalOpen(false);
-            handleAddCategory();
+            handleAddCategory(true);
           }}
         />
 
@@ -630,11 +661,11 @@ function App() {
         <CategoryManageModal
           open={categoryManageModalOpen}
           categories={categories}
-          bookmarks={filteredBookmarks}
+          bookmarks={bookmarks}
           onClose={() => setCategoryManageModalOpen(false)}
           onAdd={() => {
             setCategoryManageModalOpen(false);
-            handleAddCategory();
+            handleAddCategory(false);
           }}
           onEdit={handleEditCategory}
           onDelete={handleDeleteCategory}

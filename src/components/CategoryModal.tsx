@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 interface CategoryModalProps {
   open: boolean;
   categoryName?: string;
-  onSave: (name: string) => void;
+  onSave: (name: string) => void | Promise<void>;
   onCancel: () => void;
   onCreated?: () => void;
 }

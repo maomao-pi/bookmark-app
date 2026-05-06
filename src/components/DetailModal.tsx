@@ -1,4 +1,4 @@
-import { Modal, Button, Tag, message, Empty, Card, Spin, Tabs, Progress, Tooltip, Input, Dropdown, List } from 'antd';
+import { Modal, Button, Tag, message, Empty, Card, Spin, Tabs, Progress, Tooltip, Input, Dropdown, List, Alert } from 'antd';
 import { CopyOutlined, LinkOutlined, PlusOutlined, EditOutlined, DeleteOutlined, GlobalOutlined, FileTextOutlined, VideoCameraOutlined, RobotOutlined, PlayCircleOutlined, ClockCircleOutlined, CheckCircleOutlined, ThunderboltOutlined, FolderOutlined, BookOutlined, SearchOutlined, PushpinFilled, PushpinOutlined, MoreOutlined } from '@ant-design/icons';
 import type { Bookmark, Article, BookmarkAnalysisResult } from '../types';
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -430,58 +430,105 @@ export function DetailModal({
               )}
 
               {aiResult && !isGenerating && (
-                <div className="ai-panel">
+                <div className="ai-panel ai-panel--result">
                   <Card
                     className="result-card"
                     title="AI 分析报告"
-                    extra={<span style={{ fontSize: 12, color: '#999' }}>{formatDate(aiResult.generatedAt)}</span>}
+                    extra={
+                      <span style={{ fontSize: 12, color: '#999' }}>
+                        {aiResult.generatedAt ? formatDate(aiResult.generatedAt) : ''}
+                      </span>
+                    }
                   >
-                    <div className="result-content">
-                      {/* 摘要 */}
-                      <div className="ai-block">
-                        <h5>📋 内容摘要</h5>
-                        <p>{aiResult.summary}</p>
-                      </div>
-
-                      {/* 核心要点 */}
-                      {aiResult.keyPoints?.length > 0 && (
-                        <div className="ai-block key-points">
-                          <h5><CheckCircleOutlined /> 核心要点</h5>
-                          <ul>
-                            {aiResult.keyPoints.map((point, idx) => (
-                              <li key={idx}>{point}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* 标签建议 */}
-                      {aiResult.suggestedTags?.length > 0 && (
+                    {aiResult.degraded && (
+                      <Alert
+                        type="warning"
+                        showIcon
+                        className="ai-degraded-alert"
+                        message="分析结果已降级"
+                        description={aiResult.degradeReason || '部分内容使用兜底展示，可点击「重新分析」再次尝试。'}
+                      />
+                    )}
+                    <div className="ai-result-scroll">
+                      <div className="result-content">
                         <div className="ai-block">
-                          <h5>🏷️ 标签建议</h5>
-                          <div className="suggested-tags">
-                            {aiResult.suggestedTags.map(tag => (
-                              <Tag
-                                key={tag}
-                                className="suggested-tag"
-                                onClick={() => handleAddTag(tag)}
-                                style={{ cursor: 'pointer' }}
-                              >
-                                + {tag}
-                              </Tag>
-                            ))}
+                          <h5>📋 内容摘要</h5>
+                          <p>{aiResult.summary}</p>
+                        </div>
+
+                        {aiResult.keyPoints && aiResult.keyPoints.length > 0 && (
+                          <div className="ai-block key-points">
+                            <h5><CheckCircleOutlined /> 核心要点</h5>
+                            <ul>
+                              {aiResult.keyPoints.map((point, idx) => (
+                                <li key={idx}>{point}</li>
+                              ))}
+                            </ul>
                           </div>
-                          <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>点击标签可添加到收藏</div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* 分类匹配 */}
-                      {aiResult.categoryMatch && (
-                        <div className="ai-block">
-                          <h5>📁 分类建议</h5>
-                          <p style={{ color: '#666' }}>{aiResult.categoryMatch}</p>
-                        </div>
-                      )}
+                        {aiResult.riskNotes && aiResult.riskNotes.length > 0 && (
+                          <div className="ai-block ai-block--risk">
+                            <h5>⚠️ 风险与注意</h5>
+                            <ul>
+                              {aiResult.riskNotes.map((note, idx) => (
+                                <li key={idx}>{note}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {aiResult.nextActions && aiResult.nextActions.length > 0 && (
+                          <div className="ai-block ai-block--actions">
+                            <h5>✅ 建议下一步</h5>
+                            <ul>
+                              {aiResult.nextActions.map((act, idx) => (
+                                <li key={idx}>{act}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {aiResult.suggestedTags && aiResult.suggestedTags.length > 0 && (
+                          <div className="ai-block">
+                            <h5>🏷️ 标签建议</h5>
+                            <div className="suggested-tags">
+                              {aiResult.suggestedTags.map(tag => (
+                                <Tag
+                                  key={tag}
+                                  className="suggested-tag"
+                                  onClick={() => handleAddTag(tag)}
+                                  style={{ cursor: 'pointer' }}
+                                >
+                                  + {tag}
+                                </Tag>
+                              ))}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>点击标签可添加到收藏</div>
+                          </div>
+                        )}
+
+                        {aiResult.categoryMatch && (
+                          <div className="ai-block">
+                            <h5>📁 分类建议</h5>
+                            <p style={{ color: '#666' }}>{aiResult.categoryMatch}</p>
+                          </div>
+                        )}
+
+                        {aiResult.recommendedReads && aiResult.recommendedReads.length > 0 && (
+                          <div className="ai-block ai-block--reads">
+                            <h5>📚 延伸阅读</h5>
+                            <ul className="ai-reads-list">
+                              {aiResult.recommendedReads.map((read, idx) => (
+                                <li key={`${read.url}-${idx}`}>
+                                  <a href={read.url} target="_blank" rel="noopener noreferrer">{read.title}</a>
+                                  {read.reason && <span className="ai-read-reason">{read.reason}</span>}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <div className="result-actions">
@@ -496,8 +543,28 @@ export function DetailModal({
                       <Button
                         icon={<CopyOutlined />}
                         onClick={() => {
-                          const text = `摘要：${aiResult.summary}\n\n要点：\n${aiResult.keyPoints?.join('\n')}\n\n标签：${aiResult.suggestedTags?.join(', ')}`;
-                          navigator.clipboard.writeText(text);
+                          const lines: string[] = [
+                            `摘要：${aiResult.summary}`,
+                            '',
+                            '要点：',
+                            ...(aiResult.keyPoints || []).map(p => `- ${p}`),
+                          ];
+                          if (aiResult.riskNotes?.length) {
+                            lines.push('', '风险与注意：', ...aiResult.riskNotes.map(n => `- ${n}`));
+                          }
+                          if (aiResult.nextActions?.length) {
+                            lines.push('', '建议下一步：', ...aiResult.nextActions.map(a => `- ${a}`));
+                          }
+                          if (aiResult.suggestedTags?.length) {
+                            lines.push('', `标签：${aiResult.suggestedTags.join(', ')}`);
+                          }
+                          if (aiResult.recommendedReads?.length) {
+                            lines.push('', '延伸阅读：');
+                            aiResult.recommendedReads.forEach(r => {
+                              lines.push(`- ${r.title} ${r.url}`);
+                            });
+                          }
+                          navigator.clipboard.writeText(lines.join('\n'));
                           message.success('已复制到剪贴板');
                         }}
                       >

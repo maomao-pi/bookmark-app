@@ -8,6 +8,7 @@ interface BookmarkModalProps {
   open: boolean;
   bookmark: Bookmark | null;
   categories: Category[];
+  categoryCount: number;
   onSave: (data: BookmarkFormData) => void;
   onCancel: () => void;
   onAddCategory: () => void;
@@ -17,6 +18,7 @@ export function BookmarkModal({
   open, 
   bookmark, 
   categories, 
+  categoryCount,
   onSave, 
   onCancel,
   onAddCategory 
@@ -39,7 +41,7 @@ export function BookmarkModal({
         title: bookmark.title,
         url: bookmark.url,
         description: bookmark.description,
-        categoryId: bookmark.categoryId === '' || bookmark.categoryId === null || bookmark.categoryId === undefined ? null : bookmark.categoryId,
+        categoryId: bookmark.categoryId === '' || bookmark.categoryId === null || bookmark.categoryId === undefined ? '' : bookmark.categoryId,
         favicon: bookmark.favicon || '',
         tags: bookmark.tags || [],
         thumbnail: bookmark.thumbnail || ''
@@ -57,8 +59,7 @@ export function BookmarkModal({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      console.log('handleSubmit values.categoryId:', values.categoryId, 'type:', typeof values.categoryId);
-      
+
       const bookmarkData: BookmarkFormData = {
         title: values.title?.trim() || '',
         url: values.url?.trim() || '',
@@ -68,8 +69,7 @@ export function BookmarkModal({
         tags: Array.isArray(values.tags) ? values.tags.filter((t: string) => t?.trim()).map((t: string) => t.trim()) : [],
         thumbnail: values.thumbnail?.trim() || ''
       };
-      
-      console.log('handleSubmit bookmarkData.categoryId:', bookmarkData.categoryId);
+
       onSave(bookmarkData);
     } catch {
       // 表单验证失败
@@ -320,7 +320,7 @@ export function BookmarkModal({
       width={500}
     >
       <Form
-        key={bookmark?.id || 'new'}
+        key={`${bookmark?.id || 'new'}-${categoryCount}`}
         form={form}
         layout="vertical"
         preserve={false}

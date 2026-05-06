@@ -100,6 +100,22 @@ export interface ApiArticle {
   createdAt?: string;
 }
 
+interface ApiBookmarkPage {
+  records: ApiBookmark[];
+  total: number;
+  size?: number;
+  current?: number;
+  pages?: number;
+}
+
+function categoryIdToApi(value: string | null | undefined): number | undefined {
+  if (value === null || value === undefined || value === '') {
+    return undefined;
+  }
+  const n = parseInt(String(value), 10);
+  return Number.isNaN(n) ? undefined : n;
+}
+
 function parseTags(raw: string | undefined): string[] {
   if (!raw) return [];
   const trimmed = raw.trim();
@@ -120,7 +136,7 @@ function transformBookmark(api: ApiBookmark): Bookmark & { pinned?: boolean } {
     title: api.title,
     url: api.url,
     description: api.description || '',
-    categoryId: api.categoryId ? String(api.categoryId) : '',
+    categoryId: api.categoryId == null ? null : String(api.categoryId),
     favicon: api.favicon || '',
     source: api.source || '',
     tags: parseTags(api.tags),
@@ -173,8 +189,33 @@ export const userApi = {
   },
 
   async getBookmarks(): Promise<Bookmark[]> {
-    const data = await request<{ records: ApiBookmark[] }>('GET', '/api/user/bookmarks');
-    return data.records.map(transformBookmark);
+    const pageSize = 100;
+    const aggregated: ApiBookmark[] = [];
+    const first = await request<ApiBookmarkPage>(
+      'GET',
+      `/api/user/bookmarks?pageNum=1&pageSize=${pageSize}`
+    );
+    const firstRecords = first.records ?? [];
+    aggregated.push(...firstRecords);
+    const total = typeof first.total === 'number' ? first.total : firstRecords.length;
+    const size = first.size && first.size > 0 ? first.size : pageSize;
+    const totalPages =
+      typeof first.pages === 'number' && first.pages > 0
+        ? first.pages
+        : Math.max(1, Math.ceil(total / size));
+
+    for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
+      const page = await request<ApiBookmarkPage>(
+        'GET',
+        `/api/user/bookmarks?pageNum=${pageNum}&pageSize=${pageSize}`
+      );
+      const rec = page.records ?? [];
+      aggregated.push(...rec);
+      if (rec.length === 0) {
+        break;
+      }
+    }
+    return aggregated.map(transformBookmark);
   },
 
   async createBookmark(bookmark: Partial<Bookmark>): Promise<Bookmark> {
@@ -183,7 +224,7 @@ export const userApi = {
       title: bookmark.title,
       url: bookmark.url,
       description: bookmark.description,
-      categoryId: bookmark.categoryId ? parseInt(bookmark.categoryId) : undefined,
+      categoryId: categoryIdToApi(bookmark.categoryId),
       favicon: bookmark.favicon || '',
       tags: tagsJson,
     });
@@ -192,13 +233,7 @@ export const userApi = {
 
   async updateBookmark(id: string, bookmark: Partial<Bookmark>): Promise<Bookmark> {
     const tagsJson = bookmark.tags && bookmark.tags.length > 0 ? JSON.stringify(bookmark.tags) : '[]';
-    const categoryIdValue = bookmark.categoryId ? parseInt(bookmark.categoryId) : undefined;
-    console.log('updateBookmark request:', {
-      id,
-      categoryId: bookmark.categoryId,
-      categoryIdValue,
-      tagsJson,
-    });
+    const categoryIdValue = categoryIdToApi(bookmark.categoryId);
     const api = await request<ApiBookmark>('PUT', `/api/user/bookmarks/${id}`, {
       title: bookmark.title,
       url: bookmark.url,
@@ -207,7 +242,6 @@ export const userApi = {
       favicon: bookmark.favicon || '',
       tags: tagsJson,
     });
-    console.log('updateBookmark response:', api);
     return transformBookmark(api);
   },
 
@@ -401,10 +435,23 @@ export const userApi = {
     const url = forceRefresh
       ? '/api/user/ai/news?refresh=true'
       : '/api/user/ai/news';
-    return request<import('../types').AiNewsItem[]>('GET', url);
+    try {
+      return await request<import('../types').AiNewsItem[]>('GET', url);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'AI 推荐加载失败';
+      if (msg.includes('未登录')) {
+        throw new Error('请先登录后查看 AI 推荐');
+      }
+      throw new Error(forceRefresh ? `刷新推荐失败：${msg}` : `加载推荐失败：${msg}`);
+    }
   },
 
   async refreshAiNews(): Promise<void> {
-    return request<void>('GET', '/api/user/ai/news/clear-cache');
+    try {
+      await request<void>('GET', '/api/user/ai/news/clear-cache');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '刷新推荐失败';
+      throw new Error(`刷新推荐失败：${msg}`);
+    }
   },
 };

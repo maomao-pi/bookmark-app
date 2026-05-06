@@ -357,17 +357,23 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
     if (!api) return;
     try {
       const values = await form.validateFields();
+      const payload = {
+        ...values,
+        sort: values.sort === '' || values.sort === undefined ? undefined : Number(values.sort),
+        tags: Array.isArray(values.tags) ? JSON.stringify(values.tags) : values.tags,
+      };
       if (editingItem) {
-        await api.updateDiscover(editingItem.id, values);
+        await api.updateDiscover(editingItem.id, payload);
         message.success('内容已更新');
       } else {
-        await api.createDiscover(values);
+        await api.createDiscover(payload);
         message.success('内容已创建');
       }
       setModalVisible(false);
       loadData(pagination.current);
     } catch (error) {
-      message.error('保存失败');
+      const msg = error instanceof Error ? error.message : '请检查输入项';
+      message.error(`保存失败：${msg}`);
     }
   };
 
@@ -793,7 +799,11 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
             <Input.TextArea placeholder="简要描述..." rows={2} />
           </Form.Item>
 
-          <Form.Item name="categoryId" label="分类">
+          <Form.Item
+            name="categoryId"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select options={categoryOptions} allowClear placeholder="选择分类" />
           </Form.Item>
 

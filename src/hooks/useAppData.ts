@@ -40,29 +40,24 @@ export function useAppData() {
     setError(null);
     
     const token = localStorage.getItem('userToken');
-    console.log('loadData called, token:', !!token);
-    
+
     // 先加载发现页面数据（不需要登录）
     let discoverCategories: Category[] = [];
     let discoverBookmarks: DiscoverBookmark[] = [];
     try {
       discoverCategories = await userApi.getDiscoverCategories();
       discoverBookmarks = await userApi.getDiscoverBookmarks();
-      console.log('Discover data loaded');
-    } catch (err) {
-      console.error('Discover data load failed:', err);
+    } catch {
     }
     
     // 如果有 token，加载用户数据
     if (token) {
-      console.log('Loading user data with token...');
       try {
         const [bookmarks, categories] = await Promise.all([
           userApi.getBookmarks(),
           userApi.getCategories()
         ]);
-        console.log('User data loaded, bookmarks:', bookmarks.length);
-        
+
         setData({
           bookmarks,
           categories,
@@ -71,9 +66,7 @@ export function useAppData() {
           discoverBookmarks
         });
         setIsOnline(true);
-        console.log('SUCCESS: isOnline = true');
-      } catch (err) {
-        console.error('User data load failed:', err);
+      } catch {
         // 用户数据加载失败，但发现页面可能成功了
         setData(prev => ({
           ...prev,
@@ -83,7 +76,6 @@ export function useAppData() {
         // 不设置为 false，因为可能是临时网络问题
       }
     } else {
-      console.log('No token, setting offline mode');
       setData({
         bookmarks: [],
         categories: [],
@@ -95,7 +87,6 @@ export function useAppData() {
     }
     
     setLoading(false);
-    console.log('loadData completed, isOnline:', true);
   }, []);
 
   useEffect(() => {
@@ -108,28 +99,23 @@ export function useAppData() {
 
   const addBookmark = useCallback(async (bookmarkData: EnhancedBookmarkFormData): Promise<Bookmark | null> => {
     const token = localStorage.getItem('userToken');
-    console.log('addBookmark called, isOnline:', isOnline, 'token exists:', !!token);
-    
+
     if (isDuplicate(bookmarkData.url)) return null;
 
     // 如果有 token，尝试调用 API
     if (token) {
-      console.log('Has token, calling API...');
       try {
         const created = await userApi.createBookmark(bookmarkData);
-        console.log('Bookmark created:', created);
         setData(prev => ({
           ...prev,
           bookmarks: [created, ...prev.bookmarks]
         }));
         return created;
-      } catch (err) {
-        console.error('API call failed:', err);
+      } catch {
         throw new Error('添加失败');
       }
     }
 
-    console.log('No token, saving to localStorage (offline mode)...');
     const newBookmark: Bookmark = {
       id: generateId(),
       title: bookmarkData.title,
@@ -171,13 +157,14 @@ export function useAppData() {
     if (isOnline) {
       try {
         const updated = await userApi.updateBookmark(id, updates);
+        const merged: Bookmark = { ...updated, articles: existing.articles };
         setData(prev => ({
           ...prev,
-          bookmarks: [updated, ...prev.bookmarks.filter(b => b.id !== id)]
+          bookmarks: [merged, ...prev.bookmarks.filter(b => b.id !== id)]
         }));
-        return updated;
-      } catch (err) {
-        console.error('Failed to update bookmark:', err);
+        return merged;
+      } catch {
+        // 回退到本地乐观更新
       }
     }
 
@@ -197,8 +184,8 @@ export function useAppData() {
     if (isOnline) {
       try {
         await userApi.deleteBookmark(id);
-      } catch (err) {
-        console.error('Failed to delete bookmark:', err);
+      } catch {
+        // 仍从本地移除
       }
     }
 
@@ -221,8 +208,8 @@ export function useAppData() {
           categories: [...prev.categories, created]
         }));
         return created;
-      } catch (err) {
-        console.error('Failed to create category:', err);
+      } catch {
+        // 回退到本地分类
       }
     }
 
@@ -244,11 +231,11 @@ export function useAppData() {
         updatedCategory = updated;
         setData(prev => ({
           ...prev,
-          categories: [updated, ...prev.categories.filter(c => c.id !== id)]
+          categories: prev.categories.map(c => (c.id === id ? updated : c))
         }));
         return updated;
-      } catch (err) {
-        console.error('Failed to update category:', err);
+      } catch {
+        // 回退到本地更新
       }
     }
 
@@ -258,7 +245,7 @@ export function useAppData() {
       updatedCategory = { ...prev.categories[index], name };
       const newData = {
         ...prev,
-        categories: [updatedCategory, ...prev.categories.filter(c => c.id !== id)]
+        categories: prev.categories.map(c => (c.id === id ? updatedCategory! : c))
       };
       localStorage.setItem('bookmarkAppData', JSON.stringify(newData));
       return newData;
@@ -271,8 +258,8 @@ export function useAppData() {
     if (isOnline) {
       try {
         await userApi.deleteCategory(id);
-      } catch (err) {
-        console.error('Failed to delete category:', err);
+      } catch {
+        // 仍执行本地删除
       }
     }
 
@@ -316,8 +303,8 @@ export function useAppData() {
           return { ...prev, bookmarks: updatedBookmarks };
         });
         return created;
-      } catch (err) {
-        console.error('Failed to create article:', err);
+      } catch {
+        // 回退到本地文章
       }
     }
 
@@ -359,8 +346,8 @@ export function useAppData() {
           return { ...prev, bookmarks: updatedBookmarks };
         });
         return updated;
-      } catch (err) {
-        console.error('Failed to update article:', err);
+      } catch {
+        // 回退到本地更新
       }
     }
 
@@ -388,8 +375,8 @@ export function useAppData() {
     if (isOnline) {
       try {
         await userApi.deleteArticle(bookmarkId, articleId);
-      } catch (err) {
-        console.error('Failed to delete article:', err);
+      } catch {
+        // 仍从本地移除
       }
     }
 

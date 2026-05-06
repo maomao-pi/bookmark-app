@@ -1,6 +1,7 @@
 package com.zhilian.server.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhilian.server.dto.AiNewsItemVO;
 import com.zhilian.server.dto.ApiResponse;
 import com.zhilian.server.dto.BookmarkAnalysisResult;
 import com.zhilian.server.entity.Article;
@@ -9,6 +10,7 @@ import com.zhilian.server.entity.Category;
 import com.zhilian.server.entity.Note;
 import com.zhilian.server.entity.User;
 import com.zhilian.server.service.ArticleService;
+import com.zhilian.server.service.AiNewsService;
 import com.zhilian.server.service.BookmarkAnalyzeService;
 import com.zhilian.server.service.BookmarkService;
 import com.zhilian.server.service.CategoryService;
@@ -36,16 +38,19 @@ public class UserApiController {
     private final ArticleService articleService;
     private final BookmarkAnalyzeService bookmarkAnalyzeService;
     private final NoteService noteService;
+    private final AiNewsService aiNewsService;
     
     public UserApiController(UserService userService, CategoryService categoryService,
                             BookmarkService bookmarkService, ArticleService articleService,
-                            BookmarkAnalyzeService bookmarkAnalyzeService, NoteService noteService) {
+                            BookmarkAnalyzeService bookmarkAnalyzeService, NoteService noteService,
+                            AiNewsService aiNewsService) {
         this.userService = userService;
         this.categoryService = categoryService;
         this.bookmarkService = bookmarkService;
         this.articleService = articleService;
         this.bookmarkAnalyzeService = bookmarkAnalyzeService;
         this.noteService = noteService;
+        this.aiNewsService = aiNewsService;
     }
     
     @PostMapping("/register")
@@ -305,6 +310,25 @@ public class UserApiController {
             return ApiResponse.error("未登录");
         }
         noteService.deleteNote(noteId, userId);
+        return ApiResponse.success(null);
+    }
+
+    @GetMapping("/ai/news")
+    public ApiResponse<List<AiNewsItemVO>> getAiNews(Authentication authentication,
+                                                     @RequestParam(defaultValue = "false") boolean refresh) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        List<AiNewsItemVO> news = aiNewsService.getNews(refresh);
+        return ApiResponse.success(news);
+    }
+
+    @GetMapping("/ai/news/clear-cache")
+    public ApiResponse<Void> clearAiNewsCache(Authentication authentication) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        aiNewsService.clearCache();
         return ApiResponse.success(null);
     }
 

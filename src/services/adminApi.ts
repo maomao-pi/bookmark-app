@@ -47,7 +47,6 @@ export class AdminApi {
   }
 
   private async request<T>(method: HttpMethod, path: string, body?: unknown): Promise<T> {
-    console.log(`AdminApi request: ${method} ${this.baseUrl}${path}`, body);
     const response = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
@@ -58,7 +57,6 @@ export class AdminApi {
     });
 
     const json = (await response.json()) as ApiResponse<T>;
-    console.log('AdminApi response:', json);
     if (!response.ok || json.code !== 200) {
       throw new Error(json.message || '请求失败');
     }
@@ -190,7 +188,6 @@ export class AdminApi {
   }
 
   createCategory(payload: Partial<CategoryItem>) {
-    console.log('Creating category with payload:', payload);
     return this.request<CategoryItem>('POST', '/api/admin/categories', payload);
   }
 

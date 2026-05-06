@@ -786,6 +786,62 @@
   position: relative;
 }
 
+.ai-panel--result {
+  min-height: 0;
+}
+
+.ai-degraded-alert {
+  margin-bottom: 12px;
+}
+
+.ai-result-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: min(52vh, 480px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  margin-bottom: 8px;
+}
+
+.ai-block--risk h5 {
+  color: #b45309;
+}
+
+[data-theme="dark"] .ai-block--risk h5 {
+  color: #fbbf24;
+}
+
+.ai-block--actions h5 {
+  color: #047857;
+}
+
+[data-theme="dark"] .ai-block--actions h5 {
+  color: #34d399;
+}
+
+.ai-reads-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.ai-reads-list a {
+  font-weight: 500;
+}
+
+.ai-read-reason {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b6560;
+  margin-top: 2px;
+}
+
+[data-theme="dark"] .ai-read-reason {
+  color: #a8a29e;
+}
+
 .ai-tabs-container .ant-tabs {
   height: 100%;
   display: flex;

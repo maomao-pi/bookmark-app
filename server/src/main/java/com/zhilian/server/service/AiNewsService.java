@@ -59,13 +59,23 @@ public class AiNewsService {
      * 5. 调用 AI API 并缓存结果，每条结果附加 modelSource 字段
      */
     public List<AiNewsItemVO> getNews() {
+        return getNews(false);
+    }
+
+    public synchronized List<AiNewsItemVO> getNews(boolean forceRefresh) {
         Map<String, String> settings = systemSettingService.getSettings();
+
+        if (forceRefresh) {
+            clearCache();
+            log.info("[AiNewsService] 收到强制刷新请求，将重新拉取推荐数据");
+        }
 
         // 外部推荐总开关（兼容新旧键名）
         String externalEnabled = settings.getOrDefault("recommend.external.enabled",
                 settings.getOrDefault("recommend.externalEnabled", "false"));
         if (!"true".equalsIgnoreCase(externalEnabled)) {
-            log.info("[AiNewsService] 外部推荐已关闭 (recommend.external.enabled=false)");
+            log.info("[AiNewsService] 外部推荐已关闭 recommend.external.enabled={}，返回空列表（非异常）",
+                    externalEnabled);
             return Collections.emptyList();
         }
 
@@ -123,21 +133,28 @@ public class AiNewsService {
         }
 
         // 调用 AI 获取咨讯
+        long fetchStart = System.currentTimeMillis();
         try {
             int limit = parseLimit(settings.getOrDefault("recommend.limit", "8"));
-            log.info("[AiNewsService] 开始获取 AI 咨讯: [{}模型: {}], baseUrl={}, limit={}",
-                    useSearchModel ? "联网搜索" : "文本生成", model, baseUrl, limit);
+            log.info("[AiNewsService] 开始获取 AI 咨讯: [{}模型: {}], baseUrl={}, limit={}, forceRefresh={}",
+                    useSearchModel ? "联网搜索" : "文本生成", model, baseUrl, limit, forceRefresh);
 
             List<AiNewsItemVO> result = fetchNewsFromAi(apiKey, baseUrl, model, limit, modelType);
 
             // 更新缓存
             cache = result;
             cacheExpireAt = now + CACHE_TTL_MS;
-            log.info("[AiNewsService] 获取到 {} 条咨讯，已缓存 [{}模型: {}]",
-                    result.size(), useSearchModel ? "联网搜索" : "文本生成", model);
+            long elapsed = System.currentTimeMillis() - fetchStart;
+            log.info("[AiNewsService] 拉取完成 modelType={} model={} 条数={} 耗时={}ms 已写入缓存",
+                    modelType, model, result.size(), elapsed);
+            if (result.isEmpty()) {
+                log.warn("[AiNewsService] 本次拉取结果为空（可能为模型返回空数组、联网校验全部过滤或解析失败），仍缓存空列表以避免频繁打爆上游");
+            }
             return result;
         } catch (Exception e) {
-            log.error("[AiNewsService] 获取 AI 咨讯失败 [{}模型: {}]: {}", modelType, model, e.getMessage(), e);
+            long elapsed = System.currentTimeMillis() - fetchStart;
+            log.error("[AiNewsService] 获取 AI 咨讯失败 modelType={} model={} 耗时={}ms: {}",
+                    modelType, model, elapsed, e.getMessage(), e);
             return Collections.emptyList();
         }
     }

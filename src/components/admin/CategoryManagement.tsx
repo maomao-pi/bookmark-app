@@ -66,22 +66,23 @@ export function CategoryManagement({ api }: CategoryManagementProps) {
     if (!api) return;
     try {
       const values = await form.validateFields();
-      console.log('Form values:', values);
-      console.log('Active tab:', activeTab);
       if (editingCategory) {
         await api.updateCategory(editingCategory.id, values);
         message.success('分类已更新');
       } else {
-        const payload = { ...values, type: activeTab as 'user' | 'discover' };
-        console.log('Creating category with:', payload);
+        const payload = {
+          ...values,
+          type: activeTab as 'user' | 'discover',
+          sort: values.sort === '' || values.sort === undefined ? undefined : Number(values.sort),
+        };
         await api.createCategory(payload);
         message.success('分类已创建');
       }
       setModalVisible(false);
       loadData(pagination.current);
     } catch (error) {
-      console.error('Save error:', error);
-      message.error('保存失败');
+      const msg = error instanceof Error ? error.message : '请检查输入项';
+      message.error(`保存失败：${msg}`);
     }
   };
 

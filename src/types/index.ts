@@ -197,24 +197,24 @@ export interface AIOrganizeSuggestion {
   createdAt: string;
 }
 
+/** 与后端 BookmarkAnalysisResult.RecommendedRead 对齐 */
+export interface RecommendedReadItem {
+  title: string;
+  url: string;
+  reason?: string | null;
+}
+
 export interface BookmarkAnalysisResult {
   summary: string;
   keyPoints: string[];
   suggestedTags: string[];
   categoryMatch: string;
+  riskNotes?: string[];
+  nextActions?: string[];
+  recommendedReads?: RecommendedReadItem[];
+  degraded?: boolean;
+  degradeReason?: string;
   generatedAt: string;
-}
-
-export interface ContentRecommendation {
-  id: string;
-  title: string;
-  url: string;
-  description: string;
-  favicon: string;
-  tags: string[];
-  source: 'internal' | 'external';
-  reason: string;
-  score: number;
 }
 
 export interface AiNewsItem {
