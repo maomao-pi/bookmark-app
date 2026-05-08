@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { publicSettingsApi } from '../services/publicSettingsApi';
 import type { ThemeMode } from '../types';
+import { logger } from '../utils/logger';
 
 const STORAGE_KEY = 'bookmarkAppData';
 
@@ -40,8 +41,8 @@ export function useTheme() {
           try {
             const parsed = JSON.parse(savedData);
             savedTheme = parsed.settings?.theme === 'dark' ? 'dark' : parsed.settings?.theme === 'light' ? 'light' : undefined;
-          } catch {
-            // ignore
+          } catch (err) {
+            logger.warn('useTheme.init', 'Failed to parse saved theme:', err);
           }
         }
 
@@ -50,7 +51,8 @@ export function useTheme() {
         } else {
           applyInitial(server.defaultMode);
         }
-      } catch {
+      } catch (err) {
+        logger.warn('useTheme.init', 'Server settings unavailable, using localStorage:', err);
         // 后端不可用或未配置：沿用原有 localStorage 逻辑
         const savedData = localStorage.getItem(STORAGE_KEY);
         if (savedData) {
@@ -60,7 +62,8 @@ export function useTheme() {
               const mode = parsed.settings.theme === 'dark' ? 'dark' : 'light';
               applyInitial(mode);
             }
-          } catch {
+          } catch (parseErr) {
+            logger.warn('useTheme.init', 'Failed to parse localStorage:', parseErr);
             // 使用默认 light
           }
         }
@@ -84,8 +87,8 @@ export function useTheme() {
         const parsed = JSON.parse(savedData);
         parsed.settings = { ...parsed.settings, theme: newTheme };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-      } catch {
-        // 忽略错误
+      } catch (err) {
+        logger.warn('useTheme.toggleTheme', 'Failed to save theme to localStorage:', err);
       }
     }
   }, [theme, applyTheme]);

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Form, Input, Button, Checkbox, message, ConfigProvider } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, MobileOutlined } from '@ant-design/icons';
 import { userApi } from '../services/userApi';
+import { logger } from '../utils/logger';
 import './LoginPage.css';
 
 const REMEMBER_KEY = 'bookmark_app_remember_login';
@@ -79,7 +80,9 @@ export function LoginPage() {
         const { username, password } = JSON.parse(raw);
         loginForm.setFieldsValue({ username, password, remember: true });
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      logger.warn('LoginPage.init', 'Failed to load saved credentials:', err);
+    }
   }, [loginForm]);
 
   const handleLoginSuccess = () => {

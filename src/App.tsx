@@ -16,6 +16,7 @@ import { ArticleModal } from './components/ArticleModal';
 import { ProfileModal } from './components/ProfileModal';
 import { AiNewsSection } from './components/AiNewsSection';
 import type { Bookmark, BookmarkFormData, Article, ArticleFormData, Category } from './types';
+import { logger } from './utils/logger';
 import './App.css';
 
 const { Header, Content } = Layout;
@@ -704,7 +705,9 @@ function App() {
                 const parsed = JSON.parse(info);
                 localStorage.setItem('userInfo', JSON.stringify({ ...parsed, ...updated }));
                 refreshData();
-              } catch { /* ignore */ }
+              } catch (err) {
+                logger.warn('App.ProfileModal.onUpdated', 'Failed to update localStorage:', err);
+              }
             }
           }}
         />

@@ -4,6 +4,7 @@ import { LoadingOutlined, PushpinOutlined } from '@ant-design/icons';
 import { useState, useMemo } from 'react';
 import type { Article, ArticleFormData } from '../types';
 import { useAI } from '../hooks/useAI';
+import { logger } from '../utils/logger';
 
 interface ArticleModalProps {
   open: boolean;
@@ -68,7 +69,8 @@ export function ArticleModal({ open, article, defaultType = 'article', onSave, o
 
     try {
       new URL(url);
-    } catch {
+    } catch (err) {
+      logger.warn('ArticleModal.handleURLChange', 'Invalid URL:', url);
       return;
     }
 
@@ -83,8 +85,8 @@ export function ArticleModal({ open, article, defaultType = 'article', onSave, o
         if (!form.getFieldValue('title')?.trim() && metadata?.title?.trim()) {
           form.setFieldValue('title', metadata.title.trim());
         }
-      } catch {
-        // AI 失败时忽略
+      } catch (err) {
+        logger.warn('ArticleModal.handleURLChange', 'AI metadata extraction failed:', err);
       } finally {
         setIsExtracting(false);
       }
@@ -101,8 +103,8 @@ export function ArticleModal({ open, article, defaultType = 'article', onSave, o
         type: values.type,
         pinned: Boolean(values.pinned),
       });
-    } catch {
-      // 表单验证失败
+    } catch (err) {
+      logger.warn('ArticleModal.handleSubmit', 'Form validation failed:', err);
     }
   };
 

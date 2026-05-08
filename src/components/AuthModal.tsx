@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Modal, Form, Input, Button, Checkbox, Tabs, Divider, message, ConfigProvider, Tooltip } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, MobileOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { userApi } from '../services/userApi';
+import { logger } from '../utils/logger';
 import './LoginPage.css';
 
 const REMEMBER_KEY = 'bookmark_app_remember_login';
@@ -36,7 +37,9 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
           const { username, password } = JSON.parse(raw);
           loginForm.setFieldsValue({ username, password, remember: true });
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        logger.warn('AuthModal.init', 'Failed to load saved session:', err);
+      }
     }
   }, [open, initialMode, loginForm]);
 
@@ -132,7 +135,8 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
   const handleSendCode = async (formInstance: ReturnType<typeof Form.useForm>[0], field = 'email') => {
     try {
       await formInstance.validateFields([field]);
-    } catch {
+    } catch (err) {
+      logger.warn('AuthModal.handleSendCode', 'Form validation failed:', err);
       return;
     }
     const email = formInstance.getFieldValue(field) as string;

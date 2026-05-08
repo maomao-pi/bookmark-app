@@ -2,6 +2,7 @@ import { Modal, Form, Input, Button, Alert, Space, Typography, Divider } from 'a
 import { KeyOutlined, SaveOutlined, RestOutlined } from '@ant-design/icons';
 import { useState } from 'react';
 import { AIService } from '../services/aiService';
+import { logger } from '../utils/logger';
 
 const { Title, Text } = Typography;
 
@@ -68,8 +69,8 @@ export function SettingsModal({ open, onClose, onApiKeySaved }: SettingsModalPro
         onClose();
         setTestResult(null);
       }, 2000);
-    } catch {
-      // 表单验证失败
+    } catch (err) {
+      logger.warn('SettingsModal.handleSave', 'Form validation failed:', err);
     }
   };
 

@@ -3,6 +3,7 @@ import { Modal, Form, Input, Button, Avatar, Upload, message, Tabs, Divider, Con
 import { UserOutlined, CameraOutlined, LockOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { userApi } from '../services/userApi';
 import type { UploadChangeParam, UploadFile } from 'antd/es/upload';
+import { logger } from '../utils/logger';
 import './ProfileModal.css';
 
 export interface UserSession {
@@ -57,7 +58,8 @@ export function ProfileModal({ open, user, onClose, onUpdated }: ProfileModalPro
       const compressed = await compressImage(file);
       setAvatarPreview(compressed);
       avatarFileRef.current = file;
-    } catch {
+    } catch (err) {
+      logger.error('ProfileModal.handleAvatarChange', err, 'Image compression failed');
       message.error('图片处理失败，请重试');
     }
   };

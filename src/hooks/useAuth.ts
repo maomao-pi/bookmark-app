@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { userApi } from '../services/userApi';
+import { logger } from '../utils/logger';
 
 export interface UserSession {
   id: string;
@@ -111,15 +112,22 @@ export function useAuth() {
       return { success: false, message: '请先登录' };
     }
 
-    // 简化实现，实际应该调用 API 更新
-    const updatedUser = {
-      ...currentUser,
-      ...updates
-    };
-    localStorage.setItem('userInfo', JSON.stringify(updatedUser));
-    setCurrentUser(updatedUser);
-
-    return { success: true, message: '更新成功' };
+    try {
+      // 调用后端 API 更新 - 只传递支持的字段
+      await userApi.updateExtendedProfile({
+        nickname: updates.username,
+      });
+      const updatedUser = {
+        ...currentUser,
+        ...updates
+      };
+      localStorage.setItem('userInfo', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      return { success: true, message: '更新成功' };
+    } catch (err) {
+      logger.error('useAuth.updateProfile', err);
+      return { success: false, message: err instanceof Error ? err.message : '更新失败' };
+    }
   }, [currentUser]);
 
   return {

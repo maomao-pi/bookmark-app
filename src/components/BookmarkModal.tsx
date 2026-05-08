@@ -3,6 +3,7 @@ import { Modal, Form, Input, Select, Button, Space, message } from 'antd';
 import { GlobalOutlined, RobotOutlined } from '@ant-design/icons';
 import type { Category, Bookmark, BookmarkFormData } from '../types';
 import { useAI } from '../hooks/useAI';
+import { logger } from '../utils/logger';
 
 interface BookmarkModalProps {
   open: boolean;
@@ -29,6 +30,8 @@ export function BookmarkModal({
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [isExtractingTitle, setIsExtractingTitle] = useState(false);
+  const normalizeCategoryValue = (value: string | number | null | undefined): string =>
+    value === '' || value === null || value === undefined ? '' : String(value);
   const watchedTitle = Form.useWatch('title', form) as string | undefined;
   const watchedUrl = Form.useWatch('url', form) as string | undefined;
   const canGenerateDescription = !!watchedTitle?.trim() && !!watchedUrl?.trim();
@@ -41,7 +44,7 @@ export function BookmarkModal({
         title: bookmark.title,
         url: bookmark.url,
         description: bookmark.description,
-        categoryId: bookmark.categoryId === '' || bookmark.categoryId === null || bookmark.categoryId === undefined ? '' : bookmark.categoryId,
+        categoryId: normalizeCategoryValue(bookmark.categoryId),
         favicon: bookmark.favicon || '',
         tags: bookmark.tags || [],
         thumbnail: bookmark.thumbnail || ''
@@ -64,27 +67,28 @@ export function BookmarkModal({
         title: values.title?.trim() || '',
         url: values.url?.trim() || '',
         description: values.description?.trim() || '',
-        categoryId: values.categoryId === '' || values.categoryId === undefined ? null : values.categoryId,
+        categoryId: normalizeCategoryValue(values.categoryId) === '' ? null : normalizeCategoryValue(values.categoryId),
         favicon: values.favicon?.trim() || '',
         tags: Array.isArray(values.tags) ? values.tags.filter((t: string) => t?.trim()).map((t: string) => t.trim()) : [],
         thumbnail: values.thumbnail?.trim() || ''
       };
 
       onSave(bookmarkData);
-    } catch {
-      // 表单验证失败
+    } catch (err) {
+      logger.error('BookmarkModal.handleSubmit', err, 'Form validation failed');
     }
   };
 
   const categoryOptions = categories.map(c => ({
     label: c.name,
-    value: c.id
+    value: String(c.id)
   }));
 
   const getDomainName = (url: string): string => {
     try {
       return new URL(url).hostname.replace(/^www\./, '');
-    } catch {
+    } catch (err) {
+      logger.warn('BookmarkModal.getDomainName', 'Invalid URL:', url);
       return url;
     }
   };
@@ -93,7 +97,8 @@ export function BookmarkModal({
     try {
       const domain = new URL(url).hostname;
       return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-    } catch {
+    } catch (err) {
+      logger.warn('BookmarkModal.getFaviconUrl', 'Invalid URL:', url);
       return '';
     }
   };
@@ -127,7 +132,8 @@ export function BookmarkModal({
     try {
       const parsed = new URL(value);
       return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-    } catch {
+    } catch (err) {
+      logger.warn('BookmarkModal.isValidHttpUrl', 'Invalid URL:', value);
       return false;
     }
   };
@@ -170,7 +176,8 @@ export function BookmarkModal({
       const aiTags = await suggestTags(url, title);
       const nextTags = aiTags && aiTags.length > 0 ? aiTags : buildMockTags(title, url);
       setSuggestedTags(nextTags);
-    } catch {
+    } catch (err) {
+      logger.warn('BookmarkModal.loadSuggestedTags', 'AI tag suggestion failed:', err);
       setSuggestedTags(buildMockTags(title, url));
     } finally {
       setIsSuggestingTags(false);
@@ -198,7 +205,8 @@ export function BookmarkModal({
         form.setFieldValue('title', nextTitle);
         lastAutoFilledTitleRef.current = nextTitle;
       }
-    } catch {
+    } catch (err) {
+      logger.warn('BookmarkModal.tryAutoFillTitleByUrl', 'Title extraction failed:', err);
       const fallbackTitle = buildMockTitle(url);
       if (fallbackTitle) {
         form.setFieldValue('title', fallbackTitle);
@@ -304,8 +312,8 @@ export function BookmarkModal({
       form.setFieldValue('description', preferredDescription.trim());
       setAiGenerated(true);
       message.success(usedMock ? '已使用本地模拟AI补充描述' : 'AI已补充描述');
-    } catch {
-      // 表单校验失败
+    } catch (err) {
+      logger.error('BookmarkModal.handleAIGenerateDescription', err, 'AI description generation failed');
     }
   };
 
@@ -406,21 +414,20 @@ export function BookmarkModal({
           />
         </Form.Item>
         
-        <Form.Item
-          name="categoryId"
-          label="分类"
-        >
+        <Form.Item label="分类">
           <div style={{ display: 'flex', gap: 8 }}>
-            <Select
-              placeholder="无分类"
-              options={[{ label: '无分类', value: '' }, ...categoryOptions]}
-              style={{ flex: 1 }}
-              allowClear
-              showSearch
-              filterOption={(input, option) =>
-                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
-            />
+            <Form.Item name="categoryId" noStyle>
+              <Select
+                placeholder="无分类"
+                options={[{ label: '无分类', value: '' }, ...categoryOptions]}
+                style={{ flex: 1 }}
+                allowClear
+                showSearch
+                filterOption={(input, option) =>
+                  (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                }
+              />
+            </Form.Item>
             <Button onClick={onAddCategory}>新建</Button>
           </div>
         </Form.Item>

@@ -1,5 +1,14 @@
 // GLM-4.6 AI服务集成 - 真实实API实现
 
+// 扩展 Window 接口以支持全局 API 密钥
+declare global {
+  interface Window {
+    __APP_GLM_API_KEY__?: string;
+  }
+}
+
+import { logger } from '../utils/logger';
+
 // 运行时配置（由系统设置或 setConfig 注入）
 export interface AIServiceConfig {
   enabled: boolean;
@@ -63,7 +72,8 @@ const getCache = <T>(key: string): T | null => {
     }
     
     return data;
-  } catch {
+  } catch (err) {
+    logger.warn('aiService.getCache', 'Cache read error:', err);
     return null;
   }
 };
@@ -75,8 +85,8 @@ const setCache = <T>(key: string, data: T): void => {
       timestamp: Date.now()
     };
     localStorage.setItem(`${CACHE_PREFIX}${key}`, JSON.stringify(cacheData));
-  } catch {
-    // 忽略缓存错误
+  } catch (err) {
+    logger.warn('aiService.setCache', 'Cache write error:', err);
   }
 };
 
@@ -113,7 +123,8 @@ const getFaviconURL = (url: string): string => {
   try {
     const urlObj = new URL(url);
     return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
-  } catch {
+  } catch (err) {
+    logger.warn('aiService.getFaviconURL', 'Invalid URL:', url);
     return '';
   }
 };
@@ -156,8 +167,8 @@ async function callGLMAPI(prompt: string, apiKey: string, baseUrl?: string, mode
 
 // 获取 API 密钥：优先使用运行时配置（来自系统设置），其次本地/环境
 const getApiKey = (): string | null => {
-  if (typeof window !== 'undefined' && (window as any).__APP_GLM_API_KEY__) {
-    return (window as any).__APP_GLM_API_KEY__;
+  if (typeof window !== 'undefined' && window.__APP_GLM_API_KEY__) {
+    return window.__APP_GLM_API_KEY__;
   }
   if (runtimeConfig?.apiKey) return runtimeConfig.apiKey;
   return localStorage.getItem('glm_api_key');
@@ -247,7 +258,8 @@ export class AIService {
         } else {
           throw new Error('AI响应中未找到JSON');
         }
-      } catch {
+      } catch (err) {
+        logger.warn('aiService.extractURLMetadata', 'AI JSON parse failed, using fallback:', err);
         // AI解析失败，使用基础数据
         aiData = {
           title: new URL(url).hostname,
@@ -333,7 +345,8 @@ ${existingDescription ? `现有描述: ${existingDescription}` : ''}
             ['简洁', '详细', '功能导向'].includes(desc.style)
           );
         }
-      } catch {
+      } catch (err) {
+        logger.warn('aiService.generateDescription', 'JSON parse failed, using defaults:', err);
         // 解析失败，生成默认描述
         descriptions = [
           { style: '简洁', text: `${title} - ${url}` },
@@ -398,7 +411,8 @@ ${existingDescription ? `现有描述: ${existingDescription}` : ''}
             tag && typeof tag === 'string' && tag.length >= 2 && tag.length <= 6
           ).slice(0, 5);
         }
-      } catch {
+      } catch (err) {
+        logger.warn('aiService.suggestTags', 'JSON parse failed, using defaults:', err);
         // 解析失败，使用基础标签
         tags = ['网页', '在线服务'];
       }

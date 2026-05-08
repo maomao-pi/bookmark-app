@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Category, Bookmark, Article, EnhancedBookmarkFormData, EnhancedArticleFormData, DiscoverBookmark, AppDataWithDiscover } from '../types';
 import { userApi } from '../services/userApi';
+import { logger } from '../utils/logger';
 
 const defaultSettings = { theme: 'light' as const, sortBy: 'date' as const, sortOrder: 'desc' as const };
 
@@ -8,13 +9,21 @@ function getFaviconFromUrl(url: string): string {
   try {
     const urlObj = new URL(url);
     return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=64`;
-  } catch {
+  } catch (err) {
+    logger.warn('getFaviconFromUrl', 'Invalid URL:', url);
     return '';
   }
 }
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function normalizeCategoryId(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') {
+    return '';
+  }
+  return String(value);
 }
 
 export function useAppData() {
@@ -47,7 +56,8 @@ export function useAppData() {
     try {
       discoverCategories = await userApi.getDiscoverCategories();
       discoverBookmarks = await userApi.getDiscoverBookmarks();
-    } catch {
+    } catch (err) {
+      logger.warn('useAppData.loadData', 'Failed to load discover data:', err);
     }
     
     // 如果有 token，加载用户数据
@@ -66,13 +76,15 @@ export function useAppData() {
           discoverBookmarks
         });
         setIsOnline(true);
-      } catch {
+      } catch (err) {
+        logger.error('useAppData.loadData', err, 'User data load failed');
         // 用户数据加载失败，但发现页面可能成功了
         setData(prev => ({
           ...prev,
           discoverCategories,
           discoverBookmarks
         }));
+        setError(err instanceof Error ? err.message : '加载用户数据失败');
         // 不设置为 false，因为可能是临时网络问题
       }
     } else {
@@ -111,7 +123,8 @@ export function useAppData() {
           bookmarks: [created, ...prev.bookmarks]
         }));
         return created;
-      } catch {
+      } catch (err) {
+        logger.error('useAppData.addBookmark', err);
         throw new Error('添加失败');
       }
     }
@@ -163,7 +176,8 @@ export function useAppData() {
           bookmarks: [merged, ...prev.bookmarks.filter(b => b.id !== id)]
         }));
         return merged;
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.updateBookmark', err, 'API update failed, falling back to local');
         // 回退到本地乐观更新
       }
     }
@@ -184,7 +198,8 @@ export function useAppData() {
     if (isOnline) {
       try {
         await userApi.deleteBookmark(id);
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.deleteBookmark', err, 'API delete failed, removing locally');
         // 仍从本地移除
       }
     }
@@ -208,7 +223,8 @@ export function useAppData() {
           categories: [...prev.categories, created]
         }));
         return created;
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.addCategory', err, 'API create failed, falling back to local');
         // 回退到本地分类
       }
     }
@@ -234,7 +250,8 @@ export function useAppData() {
           categories: prev.categories.map(c => (c.id === id ? updated : c))
         }));
         return updated;
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.updateCategory', err, 'API update failed, falling back to local');
         // 回退到本地更新
       }
     }
@@ -258,7 +275,8 @@ export function useAppData() {
     if (isOnline) {
       try {
         await userApi.deleteCategory(id);
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.deleteCategory', err, 'API delete failed, removing locally');
         // 仍执行本地删除
       }
     }
@@ -303,7 +321,8 @@ export function useAppData() {
           return { ...prev, bookmarks: updatedBookmarks };
         });
         return created;
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.addArticle', err, 'API create failed, falling back to local');
         // 回退到本地文章
       }
     }
@@ -346,7 +365,8 @@ export function useAppData() {
           return { ...prev, bookmarks: updatedBookmarks };
         });
         return updated;
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.updateArticle', err, 'API update failed, falling back to local');
         // 回退到本地更新
       }
     }
@@ -375,7 +395,8 @@ export function useAppData() {
     if (isOnline) {
       try {
         await userApi.deleteArticle(bookmarkId, articleId);
-      } catch {
+      } catch (err) {
+        logger.warn('useAppData.deleteArticle', err, 'API delete failed, removing locally');
         // 仍从本地移除
       }
     }
@@ -406,7 +427,10 @@ export function useAppData() {
 
   const getFilteredBookmarks = useCallback((): Bookmark[] => {
     let bookmarks = [...data.bookmarks];
-    if (categoryFilter) bookmarks = bookmarks.filter(b => b.categoryId === categoryFilter);
+    if (categoryFilter) {
+      const normalizedFilter = normalizeCategoryId(categoryFilter);
+      bookmarks = bookmarks.filter(b => normalizeCategoryId(b.categoryId) === normalizedFilter);
+    }
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       bookmarks = bookmarks.filter(bookmark => {
@@ -435,8 +459,9 @@ export function useAppData() {
   }, [data, categoryFilter, searchQuery]);
 
   const getCategoryName = useCallback((categoryId: string | null): string | null => {
-    if (!categoryId) return null;
-    return data.categories.find(c => c.id === categoryId)?.name || null;
+    const normalizedCategoryId = normalizeCategoryId(categoryId);
+    if (!normalizedCategoryId) return null;
+    return data.categories.find(c => normalizeCategoryId(c.id) === normalizedCategoryId)?.name || null;
   }, [data.categories]);
 
   const getBookmarkById = useCallback((id: string): Bookmark | undefined => {

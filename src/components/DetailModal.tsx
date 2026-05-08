@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { userApi } from '../services/userApi';
 import { publicSettingsApi } from '../services/publicSettingsApi';
 import { NoteSection } from './NoteSection';
+import { logger } from '../utils/logger';
 import './DetailModal.css';
 
 interface DetailModalProps {
@@ -43,7 +44,9 @@ export function DetailModal({
   useEffect(() => {
     publicSettingsApi.getAiSettings().then(ai => {
       setAiModelName(ai.model || 'AI');
-    }).catch(() => {});
+    }).catch((err) => {
+      logger.warn('DetailModal.init', 'Failed to load AI settings:', err);
+    });
   }, []);
 
   useEffect(() => {
@@ -127,7 +130,8 @@ export function DetailModal({
       await userApi.updateBookmark(bookmark.id, { ...bookmark, tags: [...currentTags, tag] });
       onTagAdded?.(bookmark.id, tag);
       message.success(`标签「${tag}」已添加`);
-    } catch {
+    } catch (err) {
+      logger.error('DetailModal.handleAddTag', err, 'Failed to add tag');
       message.error('添加标签失败');
     }
   };
@@ -139,7 +143,8 @@ export function DetailModal({
     );
     try {
       await userApi.updateArticle(bookmark!.id, article.id, { ...article, pinned: newPinned });
-    } catch {
+    } catch (err) {
+      logger.error('DetailModal.handleTogglePin', err, 'Failed to toggle pin');
       setLocalArticles(prev =>
         prev.map(a => a.id === article.id ? { ...a, pinned: article.pinned } : a)
       );

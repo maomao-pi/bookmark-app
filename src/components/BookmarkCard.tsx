@@ -1,6 +1,7 @@
 import { Card, Tag, Button, Tooltip } from 'antd';
 import { EyeOutlined, EditOutlined, DeleteOutlined, PushpinFilled } from '@ant-design/icons';
 import type { Bookmark } from '../types';
+import { logger } from '../utils/logger';
 import './BookmarkCard.css';
 
 interface BookmarkCardProps {
@@ -17,7 +18,8 @@ function getDomain(url: string) {
   try {
     const hostname = new URL(url).hostname;
     return hostname.replace(/^www\./, '');
-  } catch {
+  } catch (err) {
+    logger.warn('BookmarkCard.getDomain', 'Invalid URL:', url);
     return url;
   }
 }
@@ -26,7 +28,8 @@ function getFaviconUrl(url: string): string {
   try {
     const hostname = new URL(url).hostname;
     return `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
-  } catch {
+  } catch (err) {
+    logger.warn('BookmarkCard.getFaviconUrl', 'Invalid URL:', url);
     return '';
   }
 }

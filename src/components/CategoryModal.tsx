@@ -1,5 +1,6 @@
 import { Modal, Form, Input } from 'antd';
 import { useEffect } from 'react';
+import { logger } from '../utils/logger';
 
 interface CategoryModalProps {
   open: boolean;
@@ -26,8 +27,8 @@ export function CategoryModal({ open, categoryName, onSave, onCancel, onCreated 
       if (!isEditing && onCreated) {
         onCreated();
       }
-    } catch {
-      // 表单验证失败
+    } catch (err) {
+      logger.warn('CategoryModal.handleSubmit', 'Form validation failed:', err);
     }
   };
 

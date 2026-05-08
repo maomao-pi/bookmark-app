@@ -3,6 +3,7 @@ import { Button, Input, List, Popconfirm, message, Empty, Spin, Typography } fro
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import type { Note } from '../types';
 import { userApi } from '../services/userApi';
+import { logger } from '../utils/logger';
 import './NoteSection.css';
 
 const { TextArea } = Input;
@@ -50,7 +51,8 @@ export function NoteSection({ bookmarkId }: NoteSectionProps) {
       setNewContent('');
       setAdding(false);
       message.success('笔记已添加');
-    } catch {
+    } catch (err) {
+      logger.error('NoteSection.handleAdd', err, 'Failed to add note');
       message.error('添加失败，请重试');
     } finally {
       setSaving(false);
@@ -75,7 +77,8 @@ export function NoteSection({ bookmarkId }: NoteSectionProps) {
       );
       setEditingId(null);
       message.success('笔记已更新');
-    } catch {
+    } catch (err) {
+      logger.error('NoteSection.handleSaveEdit', err, 'Failed to update note');
       message.error('更新失败，请重试');
     } finally {
       setSaving(false);
@@ -87,7 +90,8 @@ export function NoteSection({ bookmarkId }: NoteSectionProps) {
       await userApi.deleteNote(bookmarkId, noteId);
       setNotes(prev => prev.filter(n => n.id !== noteId));
       message.success('笔记已删除');
-    } catch {
+    } catch (err) {
+      logger.error('NoteSection.handleDelete', err, 'Failed to delete note');
       message.error('删除失败，请重试');
     }
   };

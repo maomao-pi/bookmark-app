@@ -217,7 +217,7 @@ export function AdminLayout({
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Badge count={5} size="small">
+            <Badge count={0} size="small">
               <div
                 style={{
                   fontSize: 18,
