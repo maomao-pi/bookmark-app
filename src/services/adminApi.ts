@@ -7,6 +7,7 @@ import type {
   BookmarkItem,
   CategoryItem,
   DiscoverItem,
+  NotificationItem,
   OperationLogItem,
   PageData,
   UserDetailResponse,
@@ -437,5 +438,32 @@ export class AdminApi {
       imageData,
       filename,
     });
+  }
+
+  // -------------------- 通知 --------------------
+  getNotifications(params: { pageNum: number; pageSize: number }) {
+    return this.request<PageData<NotificationItem>>(
+      'GET',
+      `/api/admin/notifications${buildQuery({ pageNum: params.pageNum, pageSize: params.pageSize })}`,
+    );
+  }
+
+  getRecentNotifications(limit = 10) {
+    return this.request<NotificationItem[]>(
+      'GET',
+      `/api/admin/notifications/recent${buildQuery({ limit })}`,
+    );
+  }
+
+  getUnreadNotificationCount() {
+    return this.request<{ count: number }>('GET', '/api/admin/notifications/unread-count');
+  }
+
+  markNotificationAsRead(id: number) {
+    return this.request<void>('PUT', `/api/admin/notifications/${id}/read`);
+  }
+
+  markAllNotificationsAsRead() {
+    return this.request<void>('PUT', '/api/admin/notifications/read-all');
   }
 }

@@ -4,8 +4,12 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhilian.server.common.ErrorCode;
 import com.zhilian.server.entity.Article;
+import com.zhilian.server.entity.Bookmark;
+import com.zhilian.server.entity.User;
 import com.zhilian.server.exception.BizException;
 import com.zhilian.server.mapper.ArticleMapper;
+import com.zhilian.server.mapper.BookmarkMapper;
+import com.zhilian.server.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -20,9 +24,16 @@ public class ArticleService {
     private static final Set<String> ALLOWED_ARTICLE_TYPES = new HashSet<>(List.of("article", "video", "document", "link"));
 
     private final ArticleMapper articleMapper;
+    private final BookmarkMapper bookmarkMapper;
+    private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
-    public ArticleService(ArticleMapper articleMapper) {
+    public ArticleService(ArticleMapper articleMapper, BookmarkMapper bookmarkMapper,
+                         UserMapper userMapper, NotificationService notificationService) {
         this.articleMapper = articleMapper;
+        this.bookmarkMapper = bookmarkMapper;
+        this.userMapper = userMapper;
+        this.notificationService = notificationService;
     }
 
     public Page<Article> getArticleList(int pageNum, int pageSize, String keyword, Long bookmarkId, String type,
@@ -205,6 +216,14 @@ public class ArticleService {
             article.setType("link");
         }
         articleMapper.insert(article);
+
+        Bookmark bookmark = bookmarkMapper.selectById(article.getBookmarkId());
+        if (bookmark != null) {
+            User user = userMapper.selectById(bookmark.getUserId());
+            String username = user != null ? user.getUsername() : "未知用户";
+            notificationService.notifyNewArticle(article.getId(), article.getTitle(), bookmark.getUserId(), username);
+        }
+
         return article;
     }
 

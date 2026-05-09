@@ -15,6 +15,8 @@ import {
   RobotOutlined,
 } from '@ant-design/icons';
 import type { AdminLoginResponse } from '../../types/admin';
+import type { NotificationItem } from '../../types/admin';
+import { NotificationPanel } from './NotificationPanel';
 
 const { Header, Sider, Content } = Layout;
 
@@ -28,6 +30,15 @@ export interface AdminLayoutProps {
   onCollapse: (collapsed: boolean) => void;
   permissions?: string[];
   isSuperAdmin?: boolean;
+  // 通知相关
+  notifications: NotificationItem[];
+  unreadCount: number;
+  notificationLoading: boolean;
+  notificationRefreshing: boolean;
+  onNotificationMarkAsRead: (id: number) => void;
+  onNotificationMarkAllAsRead: () => void;
+  onNotificationRefresh: () => void;
+  onNotificationClick: (notification: NotificationItem) => void;
 }
 
 interface MenuItemConfig {
@@ -100,6 +111,14 @@ export function AdminLayout({
   onCollapse,
   permissions = [],
   isSuperAdmin = false,
+  notifications,
+  unreadCount,
+  notificationLoading,
+  notificationRefreshing,
+  onNotificationMarkAsRead,
+  onNotificationMarkAllAsRead,
+  onNotificationRefresh,
+  onNotificationClick,
 }: AdminLayoutProps) {
   const { token } = theme.useToken();
 
@@ -217,17 +236,35 @@ export function AdminLayout({
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <Badge count={0} size="small">
-              <div
-                style={{
-                  fontSize: 18,
-                  cursor: 'pointer',
-                  padding: '0 8px',
-                }}
-              >
-                <BellOutlined />
-              </div>
-            </Badge>
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              dropdownRender={() => (
+                <NotificationPanel
+                  notifications={notifications}
+                  loading={notificationLoading}
+                  refreshing={notificationRefreshing}
+                  onMarkAsRead={onNotificationMarkAsRead}
+                  onMarkAllAsRead={onNotificationMarkAllAsRead}
+                  onNotificationClick={onNotificationClick}
+                  onRefresh={onNotificationRefresh}
+                />
+              )}
+            >
+              <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+                <div
+                  style={{
+                    fontSize: 18,
+                    cursor: 'pointer',
+                    padding: '0 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <BellOutlined />
+                </div>
+              </Badge>
+            </Dropdown>
             <Dropdown
               menu={{ items: userMenuItems, onClick: handleUserMenuClick }}
               placement="bottomRight"

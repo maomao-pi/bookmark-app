@@ -35,14 +35,17 @@ public class UserService {
     private final ArticleMapper articleMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final NotificationService notificationService;
 
     public UserService(UserMapper userMapper, BookmarkMapper bookmarkMapper,
-                       ArticleMapper articleMapper, PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+                       ArticleMapper articleMapper, PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
+                       NotificationService notificationService) {
         this.userMapper = userMapper;
         this.bookmarkMapper = bookmarkMapper;
         this.articleMapper = articleMapper;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.notificationService = notificationService;
     }
     
     public Page<User> getUserList(int pageNum, int pageSize, String keyword, String sortField, String sortOrder) {
@@ -107,7 +110,9 @@ public class UserService {
         
         userMapper.insert(user);
         user.setPassword(null);
-        
+
+        notificationService.notifyUserRegister(user.getId(), user.getUsername());
+
         String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
         Map<String, Object> result = new HashMap<>();
         result.put("user", user);
@@ -185,6 +190,9 @@ public class UserService {
         userMapper.insert(user);
         user.setPassword(null);
         user.setBookmarkCount(0L);
+
+        notificationService.notifyUserRegister(user.getId(), user.getUsername());
+
         return user;
     }
     

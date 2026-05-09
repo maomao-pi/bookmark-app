@@ -13,7 +13,9 @@ import { OperationLogs } from './OperationLogs';
 import { AdminManagement } from './AdminManagement';
 import { AiLogs } from './AiLogs';
 import { AdminApi } from '../../services/adminApi';
+import { useNotifications } from '../../hooks/useNotifications';
 import type { AdminLoginResponse } from '../../types/admin';
+import type { NotificationItem } from '../../types/admin';
 
 const ADMIN_STORAGE_KEY = 'adminToken';
 const ADMIN_INFO_KEY = 'adminInfo';
@@ -32,6 +34,16 @@ export function AdminApp() {
   const [api, setApi] = useState<AdminApi | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+
+  const {
+    unreadCount,
+    notifications,
+    loading: notificationLoading,
+    refreshing: notificationRefreshing,
+    refresh: onNotificationRefresh,
+    markAsRead: onNotificationMarkAsRead,
+    markAllAsRead: onNotificationMarkAllAsRead,
+  } = useNotifications(api);
   
   const timeoutRef = useRef<number | null>(null);
   const warningRef = useRef<number | null>(null);
@@ -153,6 +165,27 @@ export function AdminApp() {
     setCollapsed(collapsed);
   };
 
+  const handleNotificationClick = useCallback((notification: NotificationItem) => {
+    // 标记已读
+    if (!notification.isRead) {
+      onNotificationMarkAsRead(notification.id);
+    }
+    // 根据类型跳转到对应页面
+    switch (notification.type) {
+      case 'user_register':
+      case 'new_bookmark':
+      case 'new_article':
+        // 跳转到用户管理，并展示对应用户详情
+        setCurrentPage('users');
+        break;
+      case 'system_alert':
+        setCurrentPage('logs');
+        break;
+      default:
+        break;
+    }
+  }, [onNotificationMarkAsRead]);
+
   const renderPage = () => {
     if (!api) return <Dashboard api={null} />;
     
@@ -201,6 +234,14 @@ export function AdminApp() {
           onCollapse={handleCollapse}
           permissions={permissions}
           isSuperAdmin={adminInfo?.role === 'super_admin'}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          notificationLoading={notificationLoading}
+          notificationRefreshing={notificationRefreshing}
+          onNotificationMarkAsRead={onNotificationMarkAsRead}
+          onNotificationMarkAllAsRead={onNotificationMarkAllAsRead}
+          onNotificationRefresh={onNotificationRefresh}
+          onNotificationClick={handleNotificationClick}
         >
           {renderPage()}
         </AdminLayout>

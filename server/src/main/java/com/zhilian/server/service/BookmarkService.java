@@ -6,8 +6,10 @@ import com.zhilian.server.common.ErrorCode;
 import com.zhilian.server.entity.Article;
 import com.zhilian.server.entity.Bookmark;
 import com.zhilian.server.exception.BizException;
+import com.zhilian.server.entity.User;
 import com.zhilian.server.mapper.ArticleMapper;
 import com.zhilian.server.mapper.BookmarkMapper;
+import com.zhilian.server.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,13 +27,18 @@ import java.util.stream.Collectors;
 public class BookmarkService {
 
     private static final Set<String> ALLOWED_SOURCES = new HashSet<>(Arrays.asList("user", "discover"));
-    
+
     private final BookmarkMapper bookmarkMapper;
     private final ArticleMapper articleMapper;
+    private final NotificationService notificationService;
+    private final UserMapper userMapper;
 
-    public BookmarkService(BookmarkMapper bookmarkMapper, ArticleMapper articleMapper) {
+    public BookmarkService(BookmarkMapper bookmarkMapper, ArticleMapper articleMapper,
+                          NotificationService notificationService, UserMapper userMapper) {
         this.bookmarkMapper = bookmarkMapper;
         this.articleMapper = articleMapper;
+        this.notificationService = notificationService;
+        this.userMapper = userMapper;
     }
     
     public Page<Bookmark> getBookmarkList(int pageNum, int pageSize, String keyword, Long categoryId, Long userId,
@@ -60,6 +67,11 @@ public class BookmarkService {
             bookmark.setFavicon("");
         }
         bookmarkMapper.insert(bookmark);
+
+        User user = userMapper.selectById(bookmark.getUserId());
+        String username = user != null ? user.getUsername() : "未知用户";
+        notificationService.notifyNewBookmark(bookmark.getId(), bookmark.getTitle(), bookmark.getUserId(), username);
+
         return bookmark;
     }
     

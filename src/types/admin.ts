@@ -138,3 +138,19 @@ export interface UserDetailResponse {
   categoryDistribution: Record<string, number>;
   recentBookmarks: BookmarkItem[];
 }
+
+export type NotificationType = 'user_register' | 'new_bookmark' | 'new_article' | 'system_alert';
+
+export interface NotificationItem {
+  id: number;
+  type: NotificationType;
+  title: string;
+  content: string;
+  targetType: string | null;
+  targetId: number | null;
+  relatedUserId: number | null;
+  relatedUsername: string | null;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+}

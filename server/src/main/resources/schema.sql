@@ -108,6 +108,24 @@ CREATE TABLE IF NOT EXISTS operation_log (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志表';
 
+-- 通知表
+CREATE TABLE IF NOT EXISTS notification (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    type VARCHAR(30) NOT NULL COMMENT '通知类型: user_register, new_bookmark, new_article, system_alert',
+    title VARCHAR(100) NOT NULL COMMENT '通知标题',
+    content TEXT DEFAULT NULL COMMENT '通知内容',
+    target_type VARCHAR(30) DEFAULT NULL COMMENT '关联目标类型: user, bookmark, article, discover',
+    target_id BIGINT DEFAULT NULL COMMENT '关联目标ID',
+    related_user_id BIGINT DEFAULT NULL COMMENT '触发用户ID',
+    related_username VARCHAR(50) DEFAULT NULL COMMENT '触发用户名',
+    is_read TINYINT DEFAULT 0 COMMENT '是否已读: 0-未读, 1-已读',
+    read_at DATETIME DEFAULT NULL COMMENT '阅读时间',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    INDEX idx_type (type),
+    INDEX idx_is_read (is_read),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
+
 -- 系统配置表
 CREATE TABLE IF NOT EXISTS system_setting (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
