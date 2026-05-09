@@ -13,6 +13,9 @@ export interface AiSettings {
   apiKey: string;
   baseUrl: string;
   model: string;
+  imageEnabled: boolean;
+  imageApiKey: string;
+  imageModel: string;
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -40,6 +43,9 @@ export const publicSettingsApi = {
       apiKey: data['ai.text.apiKey'] || data['ai.apiKey'] || '',
       baseUrl: data['ai.text.baseUrl'] || data['ai.baseUrl'] || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
       model: data['ai.text.model'] || data['ai.model'] || 'qwen3-plus',
+      imageEnabled: data['ai.image.enabled'] === 'true',
+      imageApiKey: data['ai.image.apiKey'] || '',
+      imageModel: data['ai.image.model'] || 'image-01',
     };
   },
 };

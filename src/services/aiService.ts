@@ -1,4 +1,4 @@
-// GLM-4.6 AI服务集成 - 真实实API实现
+// AI服务集成 - 支持 GLM (文本) 和 Minimax (图片生成)
 
 // 扩展 Window 接口以支持全局 API 密钥
 declare global {
@@ -9,7 +9,7 @@ declare global {
 
 import { logger } from '../utils/logger';
 
-// 运行时配置（由系统设置或 setConfig 注入）
+// 文本AI配置（由系统设置或 setConfig 注入）
 export interface AIServiceConfig {
   enabled: boolean;
   apiKey: string;
@@ -17,13 +17,27 @@ export interface AIServiceConfig {
   model: string;
 }
 
+// 图片生成AI配置
+export interface ImageAIConfig {
+  enabled: boolean;
+  apiKey: string;
+  model: string;
+}
+
 let runtimeConfig: AIServiceConfig | null = null;
+let imageRuntimeConfig: ImageAIConfig | null = null;
 
 const DEFAULT_AI_CONFIG: AIServiceConfig = {
   enabled: false,
   apiKey: '',
   baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
   model: 'glm-4',
+};
+
+const DEFAULT_IMAGE_CONFIG: ImageAIConfig = {
+  enabled: false,
+  apiKey: '',
+  model: 'image-01',
 };
 
 // 兼容旧字段名（与后端默认配置保持一致）
@@ -206,6 +220,39 @@ export class AIService {
   // 检查API密钥是否配置
   static isApiKeyConfigured(): boolean {
     return !!getApiKey();
+  }
+
+  // 设置图片AI配置（从系统设置注入）
+  static setImageConfig(config: Partial<ImageAIConfig> | null): void {
+    if (config === null) {
+      imageRuntimeConfig = null;
+      return;
+    }
+    imageRuntimeConfig = {
+      ...DEFAULT_IMAGE_CONFIG,
+      ...imageRuntimeConfig,
+      ...config,
+    };
+  }
+
+  static getImageConfig(): ImageAIConfig | null {
+    return imageRuntimeConfig ? { ...imageRuntimeConfig } : null;
+  }
+
+  // 获取图片AI API密钥
+  static getImageApiKey(): string | null {
+    if (imageRuntimeConfig?.apiKey) return imageRuntimeConfig.apiKey;
+    return localStorage.getItem('minimax_image_api_key');
+  }
+
+  // 设置图片AI密钥（兼容旧用法，写入本地）
+  static setImageApiKey(key: string): void {
+    localStorage.setItem('minimax_image_api_key', key);
+  }
+
+  // 检查图片AI密钥是否配置
+  static isImageApiKeyConfigured(): boolean {
+    return !!AIService.getImageApiKey();
   }
 
   // 提取URL元数据
@@ -487,14 +534,89 @@ ${existingDescription ? `现有描述: ${existingDescription}` : ''}
         throw new Error(`API连接失败: ${response.status}`);
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         data: { status: '连接成功' }
       };
     } catch (error) {
-      return { 
-        success: false, 
+      return {
+        success: false,
         error: error instanceof Error ? error.message : 'API连接失败'
+      };
+    }
+  }
+
+  // 生成图片（使用 Minimax image-01 模型生成网站图标）
+  static async generateImage(
+    title: string,
+    _imageUrl?: string // 预留参数，Minimax暂不支持图生图
+  ): Promise<AIResponse<string>> {
+    try {
+      const apiKey = AIService.getImageApiKey();
+      if (!apiKey) {
+        return { success: false, error: '未配置Minimax API密钥，请在系统设置中配置' };
+      }
+
+      const imageConfig = AIService.getImageConfig();
+      const model = imageConfig?.model || DEFAULT_IMAGE_CONFIG.model;
+
+      // 构建更适合图标生成的prompt - 彩色扁平化logo风格
+      const prompt = `为"${title}"设计一个现代简约风格的logo图标。
+要求：
+- 扁平化设计，简洁大方
+- 必须有彩色背景色（选择能体现"${title}"主题的颜色）
+- 图标主体要简单几何化，体现"${title}"的核心含义
+- 不要包含任何文字或字母
+- 使用鲜艳活泼的现代配色方案
+- 尺寸适合48x48像素的小图标显示
+- 风格参考：Notion、Linear、Vercel等现代App图标风格`;
+
+      // Minimax image generation API (注意：是 minimaxi.com 不是 minimax.io)
+      const baseUrl = 'https://api.minimaxi.com/v1';
+      const requestBody = {
+        model: model,
+        prompt: prompt,
+        aspect_ratio: '1:1',
+        response_format: 'base64',
+      };
+
+      const response = await fetch(`${baseUrl}/image_generation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Minimax API error:', response.status, errorData);
+        throw new Error(errorData.error?.message || `图片生成失败: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Minimax image generation response:', response.status, data);
+
+      // Minimax返回格式: { data: { image_base64: [...] } } 或 { data: { image_urls: [...] } }
+      if (data.data?.image_base64 && data.data.image_base64.length > 0) {
+        const base64Image = `data:image/png;base64,${data.data.image_base64[0]}`;
+        return { success: true, data: base64Image };
+      } else if (data.data?.image_urls && data.data.image_urls.length > 0) {
+        // 如果返回的是URL格式，直接返回URL
+        return { success: true, data: data.data.image_urls[0] };
+      } else if (data.data?.image_base64) {
+        // 处理空数组情况
+        throw new Error('图片生成失败：未返回有效图片');
+      } else {
+        console.error('Unexpected response structure:', data);
+        throw new Error('图片生成返回格式异常');
+      }
+    } catch (error) {
+      console.error('图片生成失败:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '图片生成失败'
       };
     }
   }

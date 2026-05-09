@@ -3,7 +3,6 @@ package com.zhilian.server.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhilian.server.dto.AiNewsItemVO;
 import com.zhilian.server.dto.ApiResponse;
-import com.zhilian.server.dto.BookmarkAnalysisResult;
 import com.zhilian.server.entity.Article;
 import com.zhilian.server.entity.Bookmark;
 import com.zhilian.server.entity.Category;
@@ -11,7 +10,6 @@ import com.zhilian.server.entity.Note;
 import com.zhilian.server.entity.User;
 import com.zhilian.server.service.ArticleService;
 import com.zhilian.server.service.AiNewsService;
-import com.zhilian.server.service.BookmarkAnalyzeService;
 import com.zhilian.server.service.BookmarkService;
 import com.zhilian.server.service.CategoryService;
 import com.zhilian.server.service.NoteService;
@@ -31,24 +29,21 @@ import java.util.Map;
 @RequestMapping("/api/user")
 @Validated
 public class UserApiController {
-    
+
     private final UserService userService;
     private final CategoryService categoryService;
     private final BookmarkService bookmarkService;
     private final ArticleService articleService;
-    private final BookmarkAnalyzeService bookmarkAnalyzeService;
     private final NoteService noteService;
     private final AiNewsService aiNewsService;
-    
+
     public UserApiController(UserService userService, CategoryService categoryService,
                             BookmarkService bookmarkService, ArticleService articleService,
-                            BookmarkAnalyzeService bookmarkAnalyzeService, NoteService noteService,
-                            AiNewsService aiNewsService) {
+                            NoteService noteService, AiNewsService aiNewsService) {
         this.userService = userService;
         this.categoryService = categoryService;
         this.bookmarkService = bookmarkService;
         this.articleService = articleService;
-        this.bookmarkAnalyzeService = bookmarkAnalyzeService;
         this.noteService = noteService;
         this.aiNewsService = aiNewsService;
     }
@@ -214,31 +209,6 @@ public class UserApiController {
         article.setBookmarkId(bookmarkId);
         Article created = articleService.createArticle(article);
         return ApiResponse.success(created);
-    }
-    
-    @PostMapping("/bookmarks/{id}/analyze")
-    public ApiResponse<BookmarkAnalysisResult> analyzeBookmark(Authentication authentication, @PathVariable Long id) {
-        if (authentication == null) {
-            return ApiResponse.error("未登录");
-        }
-        Object principal = authentication.getPrincipal();
-        Long userId;
-        if (principal instanceof String) {
-            userId = Long.parseLong((String) principal);
-        } else if (principal instanceof User) {
-            userId = ((User) principal).getId();
-        } else {
-            return ApiResponse.error("未登录");
-        }
-        
-        Bookmark bookmark = bookmarkService.getBookmarkById(id);
-        if (bookmark == null) {
-            return ApiResponse.error("收藏不存在");
-        }
-        
-        List<Article> articles = articleService.getArticlesByBookmarkId(id);
-        BookmarkAnalysisResult result = bookmarkAnalyzeService.analyzeBookmark(bookmark, articles, userId);
-        return ApiResponse.success(result);
     }
 
     @GetMapping("/bookmarks/{bookmarkId}/notes")

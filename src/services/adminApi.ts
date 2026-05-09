@@ -430,4 +430,12 @@ export class AdminApi {
   getUserAuthBindings(userId: number) {
     return this.request<Record<string, unknown>[]>('GET', `/api/admin/users/${userId}/auth-bindings`);
   }
+
+  // -------------------- 通用文件上传 --------------------
+  uploadIcon(imageData: string, filename?: string): Promise<string> {
+    return this.request<string>('POST', '/api/common/upload-icon', {
+      imageData,
+      filename,
+    });
+  }
 }

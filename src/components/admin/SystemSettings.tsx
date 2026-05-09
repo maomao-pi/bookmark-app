@@ -27,24 +27,29 @@ export function SystemSettings({ api }: SystemSettingsProps) {
       form.setFieldsValue({
         'theme.defaultMode': settings['theme.defaultMode'] || 'light',
         'theme.allowUserSwitch': settings['theme.allowUserSwitch'] === 'true',
-        
+
         // 文本模型配置（兼容旧配置）
         'ai.text.enabled': settings['ai.text.enabled'] !== 'false',
         'ai.text.apiKey': settings['ai.text.apiKey'] || settings['ai.apiKey'] || '',
         'ai.text.baseUrl': settings['ai.text.baseUrl'] || settings['ai.baseUrl'] || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
         'ai.text.model': settings['ai.text.model'] || settings['ai.model'] || 'qwen3-plus',
-        
+
         // 联网搜索模型配置
         'ai.search.enabled': settings['ai.search.enabled'] === 'true',
         'ai.search.apiKey': settings['ai.search.apiKey'] || '',
         'ai.search.baseUrl': settings['ai.search.baseUrl'] || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
         'ai.search.model': settings['ai.search.model'] || 'qwen3-search',
-        
+
+        // 图片生成模型配置（Minimax）
+        'ai.image.enabled': settings['ai.image.enabled'] === 'true',
+        'ai.image.apiKey': settings['ai.image.apiKey'] || '',
+        'ai.image.model': settings['ai.image.model'] || 'image-01',
+
         // 推荐配置
         'recommend.internal.enabled': settings['recommend.internal.enabled'] !== 'false',
         'recommend.external.enabled': settings['recommend.external.enabled'] === 'true',
         'recommend.limit': parseInt(settings['recommend.limit'] || '10', 10),
-        
+
         // 整理建议配置
         'ai.organizeEnabled': settings['ai.organizeEnabled'] !== 'false',
         'ai.organizeFrequencyDays': parseInt(settings['ai.organizeFrequencyDays'] || '7', 10),
@@ -64,24 +69,29 @@ export function SystemSettings({ api }: SystemSettingsProps) {
         // 主题配置
         'theme.defaultMode': values['theme.defaultMode'],
         'theme.allowUserSwitch': String(values['theme.allowUserSwitch']),
-        
+
         // 文本模型配置
         'ai.text.enabled': String(values['ai.text.enabled']),
         'ai.text.apiKey': values['ai.text.apiKey'] || '',
         'ai.text.baseUrl': values['ai.text.baseUrl'] || '',
         'ai.text.model': values['ai.text.model'] || '',
-        
+
         // 联网搜索模型配置
         'ai.search.enabled': String(values['ai.search.enabled']),
         'ai.search.apiKey': values['ai.search.apiKey'] || '',
         'ai.search.baseUrl': values['ai.search.baseUrl'] || '',
         'ai.search.model': values['ai.search.model'] || '',
-        
+
+        // 图片生成模型配置（Minimax）
+        'ai.image.enabled': String(values['ai.image.enabled']),
+        'ai.image.apiKey': values['ai.image.apiKey'] || '',
+        'ai.image.model': values['ai.image.model'] || 'image-01',
+
         // 推荐配置
         'recommend.internal.enabled': String(values['recommend.internal.enabled']),
         'recommend.external.enabled': String(values['recommend.external.enabled']),
         'recommend.limit': String(values['recommend.limit'] || 10),
-        
+
         // 整理建议配置
         'ai.organizeEnabled': String(values['ai.organizeEnabled']),
         'ai.organizeFrequencyDays': String(values['ai.organizeFrequencyDays'] || 7),
@@ -227,6 +237,30 @@ export function SystemSettings({ api }: SystemSettingsProps) {
                   >
                     测试连接
                   </Button>
+                </Card>
+              ),
+            },
+            {
+              key: 'ai-image',
+              label: 'AI 图片生成',
+              children: (
+                <Card bordered={false}>
+                  <Alert
+                    message="图片生成模型用途"
+                    description="用于生成网站图标等需要图片生成的功能。使用 Minimax image-01 模型。"
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                  />
+                  <Form.Item name="ai.image.enabled" label="启用图片生成 AI" valuePropName="checked">
+                    <Switch />
+                  </Form.Item>
+                  <Form.Item name="ai.image.apiKey" label="Minimax API Key">
+                    <Input.Password placeholder="请输入 Minimax API Key" />
+                  </Form.Item>
+                  <Form.Item name="ai.image.model" label="模型名称">
+                    <Input placeholder="image-01" disabled />
+                  </Form.Item>
                 </Card>
               ),
             },

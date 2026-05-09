@@ -8,6 +8,7 @@ interface AIConfig {
   autoExtract: boolean;
   autoGenerate: boolean;
   requestTimeout: number;
+  imageEnabled: boolean;
 }
 
 // AI状态管理
@@ -16,7 +17,8 @@ export function useAI() {
     enabled: false,
     autoExtract: true,
     autoGenerate: true,
-    requestTimeout: 8000
+    requestTimeout: 8000,
+    imageEnabled: false,
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -29,13 +31,20 @@ export function useAI() {
     publicSettingsApi.getAiSettings()
       .then((ai) => {
         if (!mounted) return;
+        // 设置文本AI配置
         AIService.setConfig({
           enabled: ai.enabled,
           apiKey: ai.apiKey,
           baseUrl: ai.baseUrl,
           model: ai.model,
         });
-        setConfig(prev => ({ ...prev, enabled: ai.enabled }));
+        // 设置图片AI配置
+        AIService.setImageConfig({
+          enabled: ai.imageEnabled,
+          apiKey: ai.imageApiKey,
+          model: ai.imageModel,
+        });
+        setConfig(prev => ({ ...prev, enabled: ai.enabled, imageEnabled: ai.imageEnabled }));
       })
       .catch(() => {
         if (!mounted) return;
@@ -152,7 +161,7 @@ export function useAI() {
 
     try {
       const result = await AIService.detectArticleContentType(url);
-      
+
       if (result.success && result.data) {
         return result.data;
       } else {
@@ -163,6 +172,31 @@ export function useAI() {
       return null;
     }
   }, [config.enabled]);
+
+  // 生成网站图标图片
+  const generateIcon = useCallback(async (title: string): Promise<string | null> => {
+    if (!config.imageEnabled || !title) return null;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await AIService.generateImage(title);
+
+      if (result.success && result.data) {
+        return result.data;
+      } else {
+        throw new Error(result.error || '生成图标失败');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '生成图标失败';
+      setError(errorMessage);
+      console.error('生成图标失败:', err);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [config.imageEnabled]);
 
   // 防抖版本的元数据提取
   const debouncedExtractMetadata = useCallback(
@@ -200,17 +234,18 @@ export function useAI() {
     config,
     isLoading,
     error,
-    
+
     // 功能方法
     extractMetadata,
     debouncedExtractMetadata,
     generateDescriptions,
     suggestTags,
     detectArticleType,
-    
+    generateIcon,
+
     // 配置方法
     updateConfig,
-    
+
     // 工具方法
     clearError,
     cancelRequest,
@@ -223,7 +258,8 @@ export const AI_DEFAULT_CONFIG: AIConfig = {
   enabled: true,
   autoExtract: true,
   autoGenerate: true,
-  requestTimeout: 8000
+  requestTimeout: 8000,
+  imageEnabled: false,
 };
 
 export default useAI;

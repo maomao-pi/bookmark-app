@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Table, Button, Input, Tag, Modal, Typography, Popconfirm, message, Select, Form, Row, Col, Dropdown, Switch, Space, type MenuProps } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, ExportOutlined, MoreOutlined, PushpinOutlined, GlobalOutlined, RobotOutlined } from '@ant-design/icons';
+import { Table, Button, Input, Tag, Modal, Typography, Popconfirm, message, Select, Form, Row, Col, Dropdown, Switch, Space, Upload, type MenuProps } from 'antd';
+import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, ExportOutlined, MoreOutlined, PushpinOutlined, GlobalOutlined, RobotOutlined, UploadOutlined, SyncOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { DiscoverItem, CategoryItem, PageData } from '../../types/admin';
 import { useAI } from '../../hooks/useAI';
@@ -40,13 +40,16 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
   const [batchStatus, setBatchStatus] = useState<'visible' | 'hidden'>('visible');
   const [batchCategoryId, setBatchCategoryId] = useState<number | undefined>();
   const [form] = Form.useForm();
-  const { config: aiConfig, extractMetadata, generateDescriptions, suggestTags, isLoading, error, clearError } = useAI();
+  const { config: aiConfig, extractMetadata, generateDescriptions, suggestTags, generateIcon, isLoading, error, clearError } = useAI();
   const [aiGenerated, setAiGenerated] = useState(false);
   const [isSuggestingTags, setIsSuggestingTags] = useState(false);
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [isExtractingTitle, setIsExtractingTitle] = useState(false);
+  const [faviconFetchFailed, setFaviconFetchFailed] = useState(false);
+  const [isGeneratingIcon, setIsGeneratingIcon] = useState(false);
   const watchedTitle = Form.useWatch('title', form) as string | undefined;
   const watchedUrl = Form.useWatch('url', form) as string | undefined;
+  const watchedFavicon = Form.useWatch('favicon', form) as string | undefined;
   const lastTagSuggestKeyRef = useRef('');
   const lastTitleExtractKeyRef = useRef('');
   const lastAutoFilledTitleRef = useRef('');
@@ -195,6 +198,73 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
 
   const canGenerateDescription = !!watchedTitle?.trim() && !!watchedUrl?.trim();
 
+  // 处理图标上传
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleIconUpload = useCallback(async (options: any) => {
+    const { file, onSuccess, onError } = options;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64 = e.target?.result as string;
+      form.setFieldValue('favicon', base64);
+      setFaviconFetchFailed(false);
+      onSuccess?.(file);
+      message.success('图标上传成功');
+    };
+    reader.onerror = () => {
+      onError?.(new Error('图标上传失败'));
+      message.error('图标上传失败');
+    };
+    if (typeof file === 'string') {
+      // If file is a string (blob URL), fetch it and convert to base64
+      fetch(file)
+        .then(res => res.blob())
+        .then(blob => {
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => {
+          onError?.(new Error('图标上传失败'));
+          message.error('图标上传失败');
+        });
+    } else if (file instanceof Blob) {
+      reader.readAsDataURL(file);
+    }
+  }, [form]);
+
+  // 处理AI生成图标
+  const handleGenerateIcon = useCallback(async () => {
+    const title = watchedTitle?.trim();
+    if (!title) {
+      message.warning('请先输入网站标题');
+      return;
+    }
+
+    setIsGeneratingIcon(true);
+    clearError();
+    try {
+      const imageUrl = await generateIcon(title);
+      if (imageUrl) {
+        form.setFieldValue('favicon', imageUrl);
+        setFaviconFetchFailed(false);
+        message.success('AI图标生成成功');
+      } else if (error) {
+        message.error(`AI图标生成失败: ${error}`);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '未知错误';
+      message.error(`AI图标生成失败: ${errorMessage}`);
+    } finally {
+      setIsGeneratingIcon(false);
+    }
+  }, [watchedTitle, generateIcon, form, clearError]);
+
+  // 处理手动输入图标URL
+  const handleFaviconInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (!value) {
+      setFaviconFetchFailed(true);
+    }
+  }, []);
+
   useEffect(() => {
     if (!modalVisible) {
       return;
@@ -204,6 +274,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
     setSuggestedTags([]);
     setIsSuggestingTags(false);
     setIsExtractingTitle(false);
+    setFaviconFetchFailed(false);
     lastTagSuggestKeyRef.current = '';
     lastTitleExtractKeyRef.current = '';
     lastAutoFilledTitleRef.current = '';
@@ -226,6 +297,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
       const faviconUrl = getFaviconUrl(url);
       if (faviconUrl) {
         form.setFieldValue('favicon', faviconUrl);
+        setFaviconFetchFailed(false);
       }
     };
 
@@ -753,9 +825,113 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
             <Input placeholder="https://www.google.com" />
           </Form.Item>
 
-          <Form.Item name="favicon" label="网站图标（可选）">
-            <Input placeholder="手动输入图标URL" />
+          <Form.Item
+            name="favicon"
+            label="网站图标"
+            extra={
+              <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                {!faviconFetchFailed && !editingItem && !watchedFavicon ? (
+                  <span style={{ color: '#8c8c8c', fontSize: 12 }}>
+                    自动从网址获取图标，获取失败时可上传或AI生成
+                  </span>
+                ) : (
+                  <Space wrap>
+                    <Upload
+                      accept="image/*"
+                      showUploadList={false}
+                      customRequest={handleIconUpload}
+                    >
+                      <Button type="dashed" icon={<UploadOutlined />} size="small">
+                        上传图标
+                      </Button>
+                    </Upload>
+                    {aiConfig.imageEnabled && watchedTitle && (
+                      <Button
+                        type="dashed"
+                        icon={<RobotOutlined />}
+                        size="small"
+                        onClick={handleGenerateIcon}
+                        loading={isGeneratingIcon}
+                      >
+                        AI生成图标
+                      </Button>
+                    )}
+                  </Space>
+                )}
+              </Space>
+            }
+          >
+            <Input
+              placeholder="手动输入图标URL或上传/AI生成"
+              onChange={handleFaviconInputChange}
+              suffix={
+                (faviconFetchFailed || editingItem || watchedFavicon) && (
+                  <SyncOutlined
+                    style={{ color: '#8c8c8c', cursor: 'pointer' }}
+                    onClick={() => {
+                      const url = watchedUrl?.trim();
+                      if (url && isValidHttpUrl(url)) {
+                        const faviconUrl = getFaviconUrl(url);
+                        form.setFieldValue('favicon', faviconUrl);
+                        setFaviconFetchFailed(false);
+                      }
+                    }}
+                    title="重新获取图标"
+                  />
+                )
+              }
+            />
           </Form.Item>
+
+          {/* 图标预览区域 */}
+          {watchedFavicon && (
+            <Form.Item label="图标预览">
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: 12,
+                border: '1px solid #d9d9d9',
+                borderRadius: 8,
+                background: '#fafafa',
+              }}>
+                <img
+                  src={watchedFavicon}
+                  alt="图标预览"
+                  style={{
+                    width: 48,
+                    height: 48,
+                    objectFit: 'contain',
+                    borderRadius: 4,
+                    border: '1px solid #e8e8e8',
+                  }}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    message.error('图标加载失败');
+                  }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                    {watchedFavicon.startsWith('data:') ? 'AI生成/上传图标' : '图标URL'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#bfbfbf', wordBreak: 'break-all', maxWidth: 300 }}>
+                    {watchedFavicon.length > 60 ? watchedFavicon.substring(0, 60) + '...' : watchedFavicon}
+                  </div>
+                </div>
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  onClick={() => {
+                    form.setFieldValue('favicon', '');
+                    setFaviconFetchFailed(true);
+                  }}
+                >
+                  清除
+                </Button>
+              </div>
+            </Form.Item>
+          )}
 
           <Form.Item name="thumbnail" label="封面图（可选）">
             <Input placeholder="图片URL" />

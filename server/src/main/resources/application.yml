@@ -7,9 +7,9 @@ spring:
 
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${DB_URL:jdbc:mysql://localhost:3306/zhilian_fangzhou}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    url: jdbc:mysql://120.53.102.234:3306/zhilian_fangzhou
+    username: zhilian_fangzhou
+    password: dDWKjbShjCDBZP44
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
 
@@ -34,7 +34,7 @@ mybatis-plus:
 
 # JWT 配置 - 使用环境变量
 jwt:
-  secret: ${JWT_SECRET:}
+  secret: ${JWT_SECRET:zhilian-fangzhou-secret-key-for-jwt-token-generation-min-32-chars}
   expiration: ${JWT_EXPIRATION:86400000}
 
 # AI 配置 - 使用环境变量
