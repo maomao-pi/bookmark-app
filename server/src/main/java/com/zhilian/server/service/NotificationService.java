@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhilian.server.entity.Notification;
 import com.zhilian.server.mapper.NotificationMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -12,28 +14,35 @@ import java.util.List;
 @Service
 public class NotificationService {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
+
     private final NotificationMapper notificationMapper;
 
     public NotificationService(NotificationMapper notificationMapper) {
         this.notificationMapper = notificationMapper;
     }
 
-    /** 创建通知 */
+    /** 创建通知（失败不影响主业务流程） */
     public Notification create(String type, String title, String content,
                                String targetType, Long targetId,
                                Long relatedUserId, String relatedUsername) {
-        Notification notification = new Notification();
-        notification.setType(type);
-        notification.setTitle(title);
-        notification.setContent(content);
-        notification.setTargetType(targetType);
-        notification.setTargetId(targetId);
-        notification.setRelatedUserId(relatedUserId);
-        notification.setRelatedUsername(relatedUsername);
-        notification.setIsRead(false);
-        notification.setCreatedAt(LocalDateTime.now());
-        notificationMapper.insert(notification);
-        return notification;
+        try {
+            Notification notification = new Notification();
+            notification.setType(type);
+            notification.setTitle(title);
+            notification.setContent(content);
+            notification.setTargetType(targetType);
+            notification.setTargetId(targetId);
+            notification.setRelatedUserId(relatedUserId);
+            notification.setRelatedUsername(relatedUsername);
+            notification.setIsRead(false);
+            notification.setCreatedAt(LocalDateTime.now());
+            notificationMapper.insert(notification);
+            return notification;
+        } catch (Exception e) {
+            log.warn("创建通知失败（不影响主业务）: type={}, title={}, error={}", type, title, e.getMessage());
+            return null;
+        }
     }
 
     /** 创建用户注册通知 */
@@ -98,36 +107,67 @@ public class NotificationService {
 
     /** 查询未读通知数量 */
     public long getUnreadCount() {
-        LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Notification::getIsRead, false);
-        return notificationMapper.selectCount(wrapper);
+        try {
+            LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Notification::getIsRead, false);
+            return notificationMapper.selectCount(wrapper);
+        } catch (Exception e) {
+            log.warn("查询未读通知数量失败: {}", e.getMessage());
+            return 0;
+        }
     }
 
     /** 获取最近 N 条未读通知 */
     public List<Notification> getRecentUnread(int limit) {
-        LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Notification::getIsRead, false)
-               .orderByDesc(Notification::getCreatedAt)
-               .last("LIMIT " + limit);
-        return notificationMapper.selectList(wrapper);
+        try {
+            LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(Notification::getIsRead, false)
+                   .orderByDesc(Notification::getCreatedAt)
+                   .last("LIMIT " + limit);
+            return notificationMapper.selectList(wrapper);
+        } catch (Exception e) {
+            log.warn("查询最近未读通知失败: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** 分页查询通知 */
+    public Page<Notification> getNotifications(int pageNum, int pageSize) {
+        try {
+            Page<Notification> page = new Page<>(pageNum, pageSize);
+            LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
+            wrapper.orderByDesc(Notification::getCreatedAt);
+            return notificationMapper.selectPage(page, wrapper);
+        } catch (Exception e) {
+            log.warn("分页查询通知失败: {}", e.getMessage());
+            return new Page<>(pageNum, pageSize);
+        }
     }
 
     /** 标记单条为已读 */
     public void markAsRead(Long id) {
-        Notification notification = notificationMapper.selectById(id);
-        if (notification != null) {
-            notification.setIsRead(true);
-            notification.setReadAt(LocalDateTime.now());
-            notificationMapper.updateById(notification);
+        try {
+            Notification notification = notificationMapper.selectById(id);
+            if (notification != null) {
+                notification.setIsRead(true);
+                notification.setReadAt(LocalDateTime.now());
+                notificationMapper.updateById(notification);
+            }
+        } catch (Exception e) {
+            log.warn("标记通知已读失败: id={}, error={}", id, e.getMessage());
         }
     }
 
     /** 标记所有为已读 */
     public void markAllAsRead() {
-        Notification notification = new Notification();
-        notification.setIsRead(true);
-        notification.setReadAt(LocalDateTime.now());
-        notificationMapper.update(notification,
-            new LambdaQueryWrapper<Notification>().eq(Notification::getIsRead, false));
+        try {
+            Notification notification = new Notification();
+            notification.setIsRead(true);
+            notification.setReadAt(LocalDateTime.now());
+            notificationMapper.update(notification,
+                new LambdaQueryWrapper<Notification>().eq(Notification::getIsRead, false));
+        } catch (Exception e) {
+            log.warn("标记全部通知已读失败: {}", e.getMessage());
+        }
     }
 }
