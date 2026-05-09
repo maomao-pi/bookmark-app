@@ -1,36 +1,25 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
 
 spring:
   application:
     name: zhilian-server
-  
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/zhilian_fangzhou?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&connectionCollation=utf8mb4_unicode_ci
-    username: root
-    password: 100822mi.
+    url: jdbc:mysql://120.53.102.234:3306/zhilian_fangzhou
+    username: zhilian_fangzhou
+    password: dDWKjbShjCDBZP44
     hikari:
-      maximum-pool-size: 10
-  
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+
   sql:
     init:
       mode: never
-  
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
-  
+
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
-    default-property-inclusion: non_null
-    generator:
-      write-numbers-as-strings: false
-    serialization:
-      write-dates-as-timestamps: false
 
 # MyBatis Plus 配置
 mybatis-plus:
@@ -43,23 +32,23 @@ mybatis-plus:
     db-config:
       id-type: auto
 
-# JWT 配置
+# JWT 配置 - 使用环境变量
 jwt:
-  secret: zhilian-fangzhou-secret-key-2024-very-long-and-secure
-  expiration: 86400000
+  secret: ${JWT_SECRET:zhilian-fangzhou-secret-key-for-jwt-token-generation-min-32-chars}
+  expiration: ${JWT_EXPIRATION:86400000}
 
-# AI 配置
+# AI 配置 - 使用环境变量
 ai:
   glm:
-    base-url: https://open.bigmodel.cn/api/paas/v4
-    model: glm-4.6
-    timeout: 15000
-    max-retries: 3
+    base-url: ${AI_BASE_URL:https://open.bigmodel.cn/api/paas/v4}
+    model: ${AI_MODEL:glm-4}
+    timeout: ${AI_TIMEOUT:15000}
+    max-retries: ${AI_MAX_RETRIES:3}
 
 # CORS 配置
 cors:
-  allowed-origins: http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177,http://localhost:5178,http://localhost:5179
+  allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5174}
 
 logging:
   level:
-    com.zhilian.server: debug
+    com.zhilian.server: ${LOG_LEVEL:info}

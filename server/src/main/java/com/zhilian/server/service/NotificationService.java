@@ -97,14 +97,6 @@ public class NotificationService {
         );
     }
 
-    /** 分页查询最近通知 (默认按 createdAt desc) */
-    public Page<Notification> getNotifications(int pageNum, int pageSize) {
-        Page<Notification> page = new Page<>(pageNum, pageSize);
-        LambdaQueryWrapper<Notification> wrapper = new LambdaQueryWrapper<>();
-        wrapper.orderByDesc(Notification::getCreatedAt);
-        return notificationMapper.selectPage(page, wrapper);
-    }
-
     /** 查询未读通知数量 */
     public long getUnreadCount() {
         try {

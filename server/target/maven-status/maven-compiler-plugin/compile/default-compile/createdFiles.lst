@@ -1,6 +1,7 @@
 com\zhilian\server\security\JwtAuthenticationFilter.class
 com\zhilian\server\ZhilianServerApplication.class
 com\zhilian\server\mapper\UserAuthMapper.class
+com\zhilian\server\controller\CommonController$IconUploadRequest.class
 com\zhilian\server\service\CategoryService.class
 com\zhilian\server\dto\SystemSettingsUpdateRequest.class
 com\zhilian\server\dto\UpdatePasswordRequest.class
@@ -23,14 +24,18 @@ com\zhilian\server\common\ErrorCode.class
 com\zhilian\server\controller\UserApiController$UpdateProfileRequest.class
 com\zhilian\server\mapper\UserMapper.class
 com\zhilian\server\service\VerificationCodeService.class
+com\zhilian\server\controller\UserApiController$NoteRequest.class
 com\zhilian\server\mapper\BookmarkMapper.class
 com\zhilian\server\controller\HealthController.class
+com\zhilian\server\entity\Notification.class
 com\zhilian\server\service\NoteService.class
 com\zhilian\server\entity\Category.class
 com\zhilian\server\controller\AiLogController.class
 com\zhilian\server\service\AiNewsService.class
 com\zhilian\server\config\CorsConfig.class
 com\zhilian\server\controller\LogController.class
+com\zhilian\server\mapper\NotificationMapper.class
+com\zhilian\server\controller\CommonController.class
 com\zhilian\server\dto\PageData.class
 com\zhilian\server\service\UserService.class
 com\zhilian\server\dto\UserDetailResponse.class
@@ -41,6 +46,7 @@ com\zhilian\server\mapper\ArticleMapper.class
 com\zhilian\server\controller\PublicDiscoverController.class
 com\zhilian\server\entity\DiscoverBookmark.class
 com\zhilian\server\mapper\AiOrganizeSuggestionMapper.class
+com\zhilian\server\service\NotificationService.class
 com\zhilian\server\dto\ApiResponse.class
 com\zhilian\server\mapper\NoteMapper.class
 com\zhilian\server\entity\AiAnalysisLog.class
@@ -74,6 +80,7 @@ com\zhilian\server\mapper\AiAnalysisLogMapper.class
 com\zhilian\server\mapper\SystemSettingMapper.class
 com\zhilian\server\security\JwtUtil.class
 com\zhilian\server\controller\CategoryController.class
+com\zhilian\server\controller\NotificationController.class
 com\zhilian\server\entity\AiOrganizeSuggestion.class
 com\zhilian\server\entity\User.class
 com\zhilian\server\mapper\DiscoverBookmarkMapper.class
