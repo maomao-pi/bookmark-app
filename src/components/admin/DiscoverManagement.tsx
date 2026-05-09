@@ -17,6 +17,9 @@ const getFaviconUrl = (url: string): string => {
   }
 };
 
+const isGoogleAutoFavicon = (favicon?: string): boolean =>
+  typeof favicon === 'string' && favicon.startsWith('https://www.google.com/s2/favicons?');
+
 interface DiscoverManagementProps {
   api: AdminApi | null;
 }
@@ -289,6 +292,12 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
         return;
       }
 
+      const currentFavicon = form.getFieldValue('favicon')?.trim() || '';
+      if (editingItem && currentFavicon && !isGoogleAutoFavicon(currentFavicon)) {
+        // 编辑场景下保留已有自定义/AI图标，避免被自动抓取逻辑覆盖
+        return;
+      }
+
       if (url === lastUrlRef.current) {
         return;
       }
@@ -422,6 +431,7 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
   const handleEdit = (item: DiscoverItem) => {
     setEditingItem(item);
     form.setFieldsValue(item);
+    lastUrlRef.current = item.url || '';
     setModalVisible(true);
   };
 
