@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, Form, Input, Button, Checkbox, Tabs, Divider, message, ConfigProvider, Tooltip } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined, MobileOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { UserOutlined, LockOutlined, MailOutlined, MobileOutlined, WechatOutlined, QqOutlined } from '@ant-design/icons';
 import { userApi } from '../services/userApi';
 import { logger } from '../utils/logger';
 import './LoginPage.css';
@@ -14,18 +14,14 @@ export interface AuthModalProps {
   onSuccess: () => void;
 }
 
-type LoginTab = 'username' | 'email-password' | 'email-code';
+type LoginTab = 'username' | 'email-password';
 
 export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [loginTab, setLoginTab] = useState<LoginTab>('username');
   const [loading, setLoading] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
-  const [codeCooldown, setCodeCooldown] = useState(0);
-  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [loginForm] = Form.useForm();
   const [emailPasswordForm] = Form.useForm();
-  const [emailCodeForm] = Form.useForm();
   const [registerForm] = Form.useForm();
 
   useEffect(() => {
@@ -43,12 +39,6 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
     }
   }, [open, initialMode, loginForm]);
 
-  useEffect(() => {
-    return () => {
-      if (cooldownRef.current) clearInterval(cooldownRef.current);
-    };
-  }, []);
-
   const saveSession = (user: { id: number | string; username: string; email: string; avatar?: string; nickname?: string }) => {
     const session = {
       id: String(user.id),
@@ -65,6 +55,7 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
     message.success('登录成功');
     onSuccess();
     onClose();
+    window.location.reload();
   };
 
   const handleUsernameLogin = async (values: { username: string; password: string; remember?: boolean }) => {
@@ -98,19 +89,6 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
     }
   };
 
-  const handleEmailCodeLogin = async (values: { email: string; code: string }) => {
-    setLoading(true);
-    try {
-      const result = await userApi.loginByEmailCode(values.email, values.code);
-      saveSession(result.user);
-      onLoginOk();
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '验证码错误或已过期');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleRegister = async (values: { username: string; email: string; password: string; nickname: string; phone: string }) => {
     setLoading(true);
     try {
@@ -125,39 +103,11 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
       message.success('注册成功，欢迎加入！');
       onSuccess();
       onClose();
+      window.location.reload();
     } catch (err) {
       message.error(err instanceof Error ? err.message : '注册失败，请重试');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleSendCode = async (formInstance: ReturnType<typeof Form.useForm>[0], field = 'email') => {
-    try {
-      await formInstance.validateFields([field]);
-    } catch (err) {
-      logger.warn('AuthModal.handleSendCode', 'Form validation failed:', err);
-      return;
-    }
-    const email = formInstance.getFieldValue(field) as string;
-    setSendingCode(true);
-    try {
-      await userApi.sendVerificationCode(email, 'login');
-      message.success('验证码已发送，请查收邮件');
-      setCodeCooldown(60);
-      cooldownRef.current = setInterval(() => {
-        setCodeCooldown(prev => {
-          if (prev <= 1) {
-            clearInterval(cooldownRef.current!);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } catch (err) {
-      message.error(err instanceof Error ? err.message : '发送失败，请稍后重试');
-    } finally {
-      setSendingCode(false);
     }
   };
 
@@ -196,40 +146,6 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
           </Form.Item>
           <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>
             <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" size="large" />
-          </Form.Item>
-          <Form.Item style={{ marginTop: 16 }}>
-            <Button type="primary" htmlType="submit" block size="large" loading={loading} className="lp-submit-btn">
-              登 录
-            </Button>
-          </Form.Item>
-        </Form>
-      ),
-    },
-    {
-      key: 'email-code',
-      label: '验证码',
-      children: (
-        <Form form={emailCodeForm} onFinish={handleEmailCodeLogin} layout="vertical" requiredMark={false}>
-          <Form.Item name="email" label="邮箱" rules={[{ required: true, message: '请输入邮箱' }, { type: 'email', message: '请输入有效邮箱' }]}>
-            <Input prefix={<MailOutlined />} placeholder="请输入邮箱地址" size="large" />
-          </Form.Item>
-          <Form.Item name="code" label="验证码" rules={[{ required: true, message: '请输入验证码' }]}>
-            <Input
-              prefix={<SafetyCertificateOutlined />}
-              placeholder="6位验证码"
-              size="large"
-              suffix={
-                <Button
-                  type="link"
-                  size="small"
-                  disabled={codeCooldown > 0 || sendingCode}
-                  onClick={() => handleSendCode(emailCodeForm)}
-                  style={{ padding: '0 4px', fontSize: 12 }}
-                >
-                  {codeCooldown > 0 ? `${codeCooldown}s` : '获取验证码'}
-                </Button>
-              }
-            />
           </Form.Item>
           <Form.Item style={{ marginTop: 16 }}>
             <Button type="primary" htmlType="submit" block size="large" loading={loading} className="lp-submit-btn">
@@ -318,21 +234,19 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
                     <Button
                       shape="circle"
                       size="large"
-                      style={{ background: '#07c160', border: 'none', color: '#fff', fontSize: 18 }}
+                      style={{ background: '#07c160', border: 'none', color: '#fff' }}
                       disabled
-                    >
-                      <span style={{ fontWeight: 700, fontSize: 14 }}>W</span>
-                    </Button>
+                      icon={<WechatOutlined />}
+                    />
                   </Tooltip>
                   <Tooltip title="QQ 登录（敬请期待）">
                     <Button
                       shape="circle"
                       size="large"
-                      style={{ background: '#1aabee', border: 'none', color: '#fff', fontSize: 18 }}
+                      style={{ background: '#1aabee', border: 'none', color: '#fff' }}
                       disabled
-                    >
-                      <span style={{ fontWeight: 700, fontSize: 14 }}>Q</span>
-                    </Button>
+                      icon={<QqOutlined />}
+                    />
                   </Tooltip>
                 </div>
               </>
