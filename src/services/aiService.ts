@@ -1,4 +1,4 @@
-// AI服务集成 - 支持 GLM (文本) 和 Minimax (图片生成)
+// AI服务集成 - 文本模型（Minimax Anthropic / OpenAI 兼容）与 Minimax 图片生成
 
 // 扩展 Window 接口以支持全局 API 密钥
 declare global {
@@ -30,8 +30,8 @@ let imageRuntimeConfig: ImageAIConfig | null = null;
 const DEFAULT_AI_CONFIG: AIServiceConfig = {
   enabled: false,
   apiKey: '',
-  baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
-  model: 'glm-4',
+  baseUrl: 'https://api.minimaxi.com/anthropic',
+  model: 'MiniMax-M2.7',
 };
 
 const DEFAULT_IMAGE_CONFIG: ImageAIConfig = {
@@ -40,10 +40,10 @@ const DEFAULT_IMAGE_CONFIG: ImageAIConfig = {
   model: 'image-01',
 };
 
-// 兼容旧字段名（与后端默认配置保持一致）
+// 兼容旧字段名（与后端 / 管理后台默认配置一致）
 const GLM_API_CONFIG = {
-  baseURL: 'https://open.bigmodel.cn/api/paas/v4',
-  model: 'glm-4',
+  baseURL: 'https://api.minimaxi.com/anthropic',
+  model: 'MiniMax-M2.7',
   timeout: 15000,
   maxRetries: 3
 };
@@ -143,40 +143,86 @@ const getFaviconURL = (url: string): string => {
   }
 };
 
-// 真实的 GLM API 调用（使用传入的 baseUrl/model 或运行时配置）
-async function callGLMAPI(prompt: string, apiKey: string, baseUrl?: string, model?: string): Promise<string> {
-  const url = baseUrl ?? runtimeConfig?.baseUrl ?? GLM_API_CONFIG.baseURL;
+function isMinimaxAnthropicBaseUrl(baseUrl: string): boolean {
+  const u = baseUrl.toLowerCase();
+  return u.includes('minimaxi.com') || u.includes('minimax.io');
+}
+
+function resolveMinimaxMessagesEndpoint(baseUrl: string): string {
+  let b = baseUrl.trim().replace(/\/+$/, '');
+  if (b.toLowerCase().endsWith('/v1/messages')) return b;
+  return `${b}/v1/messages`;
+}
+
+function resolveOpenAiChatEndpoint(baseUrl: string): string {
+  let b = baseUrl.trim().replace(/\/+$/, '');
+  if (b.toLowerCase().endsWith('/chat/completions')) return b;
+  return `${b}/chat/completions`;
+}
+
+/** 文本模型：Minimax Anthropic /v1/messages 或 OpenAI 兼容 /chat/completions */
+async function callTextAiApi(prompt: string, apiKey: string, baseUrl?: string, model?: string): Promise<string> {
+  const urlBase = baseUrl ?? runtimeConfig?.baseUrl ?? GLM_API_CONFIG.baseURL;
   const m = model ?? runtimeConfig?.model ?? GLM_API_CONFIG.model;
-  const response = await fetch(`${url}/chat/completions`, {
+
+  if (isMinimaxAnthropicBaseUrl(urlBase)) {
+    const endpoint = resolveMinimaxMessagesEndpoint(urlBase);
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: m,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 1000,
+        thinking: { type: 'disabled' },
+      }),
+    });
+    const data = (await response.json().catch(() => ({}))) as {
+      content?: Array<{ type?: string; text?: string }>;
+      error?: { message?: string } | string;
+    };
+    if (!response.ok) {
+      const msg = data.error;
+      const detail = typeof msg === 'string' ? msg : msg?.message;
+      throw new Error(detail || `API调用失败: ${response.status}`);
+    }
+    const blocks = data.content;
+    if (Array.isArray(blocks)) {
+      const textBlock = blocks.find((b) => b.type === 'text');
+      if (textBlock?.text) return textBlock.text;
+    }
+    throw new Error('API返回结果为空或格式非 text');
+  }
+
+  const endpoint = resolveOpenAiChatEndpoint(urlBase);
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: m,
-      messages: [
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
+      messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      max_tokens: 1000
-    })
+      max_tokens: 1000,
+    }),
   });
 
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `API调用失败: ${response.status}`);
+    throw new Error((data as { error?: { message?: string } }).error?.message || `API调用失败: ${response.status}`);
   }
 
-  const data = await response.json();
-  if (!data.choices || data.choices.length === 0) {
+  if (!(data as { choices?: unknown[] }).choices || (data as { choices: unknown[] }).choices.length === 0) {
     throw new Error('API返回结果为空');
   }
 
-  return data.choices[0].message.content;
+  return (data as { choices: Array<{ message: { content: string } }> }).choices[0].message.content;
 }
 
 // 获取 API 密钥：优先使用运行时配置（来自系统设置），其次本地/环境
@@ -294,7 +340,7 @@ export class AIService {
 5. 分类要符合常见的网站分类`;
 
       // 调用AI API
-      const aiResponse = await callGLMAPI(prompt, apiKey);
+      const aiResponse = await callTextAiApi(prompt, apiKey);
       let aiData: Partial<URLMetadata>;
       
       try {
@@ -377,7 +423,7 @@ ${existingDescription ? `现有描述: ${existingDescription}` : ''}
 5. 详细版本50-100字
 6. 功能导向版本突出实用价值`;
 
-      const aiResponse = await callGLMAPI(prompt, apiKey);
+      const aiResponse = await callTextAiApi(prompt, apiKey);
       
       let descriptions: AIDescriptionOption[] = [];
       try {
@@ -444,7 +490,7 @@ ${existingDescription ? `现有描述: ${existingDescription}` : ''}
 3. 包含网站类型、功能、领域等维度
 4. 优先使用常见标签词`;
 
-      const aiResponse = await callGLMAPI(prompt, apiKey);
+      const aiResponse = await callTextAiApi(prompt, apiKey);
       let tags: string[] = [];
       
       try {
@@ -520,20 +566,10 @@ ${existingDescription ? `现有描述: ${existingDescription}` : ''}
     });
   }
 
-  // 测试API连接
+  // 测试文本 API（与当前系统设置中的 baseUrl/model 一致；Minimax 走 /v1/messages）
   static async testApiConnection(apiKey: string): Promise<AIResponse<{ status: string }>> {
     try {
-      const response = await fetch(`${GLM_API_CONFIG.baseURL}/models`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`API连接失败: ${response.status}`);
-      }
-
+      await callTextAiApi('ping', apiKey);
       return {
         success: true,
         data: { status: '连接成功' }

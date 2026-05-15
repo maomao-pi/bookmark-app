@@ -185,7 +185,15 @@ public class AiNewsService {
 
     private String callAiApi(String apiKey, String baseUrl, String model, String prompt,
                               boolean enableSearch) throws Exception {
-        String endpoint = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + "/chat/completions";
+        apiKey = apiKey == null ? "" : apiKey.trim();
+        String b = baseUrl == null ? "" : baseUrl.trim();
+        while (b.endsWith("/")) {
+            b = b.substring(0, b.length() - 1);
+        }
+        String endpoint = b.toLowerCase().endsWith("/chat/completions")
+                ? b
+                : b + "/chat/completions";
+
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
@@ -196,7 +204,6 @@ public class AiNewsService {
         conn.setDoOutput(true);
 
         String escapedPrompt = objectMapper.writeValueAsString(prompt);
-        // enable_search=true 激活阿里云百炼模型的联网搜索能力（qwen3-max 等支持此参数）
         String searchParam = enableSearch ? ",\"enable_search\":true" : "";
         String requestBody = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":"
                 + escapedPrompt + "}],\"max_tokens\":2048" + searchParam + "}";

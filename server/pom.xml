@@ -15,7 +15,7 @@
     <artifactId>server</artifactId>
     <version>1.0.0</version>
     <name>zhilian-server</name>
-    <description>知链方舟后端服务</description>
+    <description>Linkbox后端服务</description>
     
     <properties>
         <java.version>17</java.version>

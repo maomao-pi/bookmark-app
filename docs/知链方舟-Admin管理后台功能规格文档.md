@@ -1,10 +1,10 @@
-# 知链方舟 - Admin 管理后台功能规格文档
+# Linkbox - Admin 管理后台功能规格文档
 
 ## 一、项目背景
 
 ### 1.1 现有系统概述
 
-「知链方舟」是一个基于 React + TypeScript + Vite + Ant Design 的网站收藏夹管理应用，目前前端功能已完整实现，数据存储在浏览器 localStorage 中（无后端服务）。
+「Linkbox」是一个基于 React + TypeScript + Vite + Ant Design 的网站收藏夹管理应用，目前前端功能已完整实现，数据存储在浏览器 localStorage 中（无后端服务）。
 
 ### 1.2 现有功能清单
 
@@ -640,4 +640,4 @@ Admin 管理后台
 
 **文档版本**：v1.0
 **创建日期**：2026-03-04
-**项目名称**：知链方舟 Admin 管理后台
+**项目名称**：Linkbox Admin 管理后台

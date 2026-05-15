@@ -78,15 +78,19 @@ public class BookmarkAnalyzeService {
                 .map(Category::getName)
                 .collect(Collectors.toList());
 
-        // 4. 读取 AI 配置
+        // 4. 读取 AI 配置（与 AiNewsService / 管理后台一致；空白字符串不能用 getOrDefault，否则会误用空 baseUrl）
         Map<String, String> settings = systemSettingService.getSettings();
-        String apiKey = settings.getOrDefault("ai.text.apiKey",
-                settings.getOrDefault("ai.apiKey", ""));
-        String baseUrl = settings.getOrDefault("ai.text.baseUrl",
-                settings.getOrDefault("ai.baseUrl",
-                        "https://open.bigmodel.cn/api/paas/v4"));
-        String model = settings.getOrDefault("ai.text.model",
-                settings.getOrDefault("ai.model", "glm-4"));
+        String apiKey = firstNonBlankSetting(settings, "ai.text.apiKey", "ai.apiKey", "ai.api.key");
+        String baseUrl = firstNonBlankSetting(settings,
+                "ai.text.baseUrl", "ai.baseUrl", "ai.base.url");
+        if (baseUrl.isBlank()) {
+            baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        }
+        String model = firstNonBlankSetting(settings, "ai.text.model", "ai.model", "ai.modelName");
+        if (model.isBlank()) {
+            model = "qwen3-plus";
+        }
+        model = normalizeDashScopeModelName(model, baseUrl);
 
         if (apiKey.isBlank()) {
             throw new RuntimeException("未配置 AI API Key，请在系统设置中配置");
@@ -167,6 +171,8 @@ public class BookmarkAnalyzeService {
     }
 
     private String callAiApi(String apiKey, String baseUrl, String model, String prompt) throws Exception {
+        apiKey = apiKey == null ? "" : apiKey.trim();
+        baseUrl = baseUrl == null ? "" : baseUrl.trim();
         boolean isMinimax = baseUrl.contains("minimaxi.com") || baseUrl.contains("minimax.io");
 
         String endpoint;
@@ -174,14 +180,14 @@ public class BookmarkAnalyzeService {
 
         if (isMinimax) {
             // Minimax Anthropic 兼容 API
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "v1/messages" : baseUrl + "/v1/messages";
+            endpoint = resolveMinimaxMessagesEndpoint(baseUrl);
             String escapedContent = objectMapper.writeValueAsString(prompt);
             // 禁用 thinking 以避免额外的内容块干扰 JSON 解析
             requestBody = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":"
                     + escapedContent + "}],\"max_tokens\":2048,\"thinking\":{\"type\":\"disabled\"}}";
         } else {
-            // OpenAI 兼容 API（GLM、阿里云等）
-            endpoint = baseUrl.endsWith("/") ? baseUrl + "chat/completions" : baseUrl + "/chat/completions";
+            // OpenAI 兼容 API（GLM、DashScope compatible-mode、OpenRouter 等）
+            endpoint = resolveOpenAiChatCompletionsEndpoint(baseUrl);
             String escapedPrompt = objectMapper.writeValueAsString(prompt);
             requestBody = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":"
                     + escapedPrompt + "}],\"max_tokens\":2048}";
@@ -209,7 +215,7 @@ public class BookmarkAnalyzeService {
 
         if (statusCode >= 400) {
             log.error("[BookmarkAnalyzeService] AI API 返回错误 HTTP {}: {}", statusCode, response);
-            throw new RuntimeException("AI API 返回错误 " + statusCode);
+            throw new RuntimeException(formatAiHttpError(statusCode, response));
         }
 
         if (isMinimax) {
@@ -337,5 +343,103 @@ public class BookmarkAnalyzeService {
 
     private String nullToEmpty(String s) {
         return s == null ? "" : s;
+    }
+
+    /**
+     * 阿里云百炼 compatible-mode 下，模型 ID 须与控制台完全一致；常见笔误会导致 HTTP 403。
+     */
+    private String normalizeDashScopeModelName(String model, String baseUrl) {
+        if (model == null || baseUrl == null) {
+            return model;
+        }
+        if (!baseUrl.toLowerCase().contains("dashscope")) {
+            return model;
+        }
+        String m = model.trim();
+        if ("qwen3.6-plus".equalsIgnoreCase(m) || "qwen3-6-plus".equalsIgnoreCase(m) || "qwen3.6_plus".equalsIgnoreCase(m)) {
+            log.warn("[BookmarkAnalyzeService] 模型名「{}」非百炼标准 ID，已自动更正为 qwen3-plus", model);
+            return "qwen3-plus";
+        }
+        return m;
+    }
+
+    /**
+     * 按 key 顺序取第一个非空白配置（解决 DB 里存了空字符串时 getOrDefault 不回退的问题）。
+     */
+    private String firstNonBlankSetting(Map<String, String> settings, String... keys) {
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            String v = settings.get(key);
+            if (v != null && !v.isBlank()) {
+                return v.trim();
+            }
+        }
+        return "";
+    }
+
+    private String resolveOpenAiChatCompletionsEndpoint(String raw) {
+        String b = raw.trim();
+        while (b.endsWith("/")) {
+            b = b.substring(0, b.length() - 1);
+        }
+        String lower = b.toLowerCase();
+        if (lower.endsWith("/chat/completions")) {
+            return b;
+        }
+        return b + "/chat/completions";
+    }
+
+    private String resolveMinimaxMessagesEndpoint(String raw) {
+        String b = raw.trim();
+        while (b.endsWith("/")) {
+            b = b.substring(0, b.length() - 1);
+        }
+        String lower = b.toLowerCase();
+        if (lower.endsWith("/v1/messages")) {
+            return b;
+        }
+        return b + "/v1/messages";
+    }
+
+    /**
+     * 从上游 JSON/HTML 中抽取可读说明，便于排查 401/403（Key、模型与地址不匹配等）。
+     */
+    private String formatAiHttpError(int statusCode, String response) {
+        String body = response == null ? "" : response.trim();
+        String detail = "";
+        if (!body.isEmpty()) {
+            try {
+                JsonNode root = objectMapper.readTree(body);
+                JsonNode err = root.path("error");
+                if (err.isTextual() && !err.asText().isBlank()) {
+                    detail = err.asText();
+                } else if (err.isObject()) {
+                    String m = err.path("message").asText("");
+                    String c = err.path("code").asText("");
+                    if (!m.isBlank()) {
+                        detail = m;
+                    } else if (!c.isBlank()) {
+                        detail = c;
+                    }
+                }
+                if (detail.isBlank() && root.has("message")) {
+                    detail = root.path("message").asText("");
+                }
+            } catch (Exception ignored) {
+                detail = body.length() > 220 ? body.substring(0, 220) + "…" : body;
+            }
+        }
+        detail = detail.replace("\n", " ").trim();
+        String head = "AI API 返回错误 " + statusCode;
+        if (!detail.isEmpty()) {
+            return head + "：" + detail;
+        }
+        if (statusCode == 401 || statusCode == 403) {
+            return head + "。请核对管理后台「文本 AI」：API Key 是否有效、模型名是否已开通，且 API 地址与 Key 属同一平台"
+                    + "（例如 DashScope 需 https://dashscope.aliyuncs.com/compatible-mode/v1 ，智谱需 https://open.bigmodel.cn/api/paas/v4 ）。";
+        }
+        return head;
     }
 }

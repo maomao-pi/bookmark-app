@@ -186,7 +186,11 @@ export function SystemSettings({ api }: SystemSettingsProps) {
                   <Form.Item name="ai.text.baseUrl" label="API 地址">
                     <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
                   </Form.Item>
-                  <Form.Item name="ai.text.model" label="模型名称">
+                  <Form.Item
+                    name="ai.text.model"
+                    label="模型名称"
+                    extra="须与百炼控制台「模型」ID 完全一致。常用：qwen3-plus、qwen-turbo、qwen-max；勿填 qwen3.6-plus（易 403）。"
+                  >
                     <Input placeholder="qwen3-plus" />
                   </Form.Item>
                   <Button
