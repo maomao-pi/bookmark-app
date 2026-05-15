@@ -217,8 +217,15 @@ public class AiNewsService {
         }
         String endpoint = b + "/search";
 
-        String prompt = "latest AI, tech and programming news or articles";
-        String requestBody = "{\"query\":\"" + prompt.replace("\"", "\\\"") + "\",\"search_depth\":\"basic\",\"max_results\":" + limit + ",\"include_answer\":false,\"include_raw_content\":false}";
+        // 用中文查询，要求返回具体文章页面链接而非网站首页
+        String query = "AI人工智能、大模型、GPT、技术突破、产品更新 最新新闻（要求返回具体文章详情页URL，不是网站首页）";
+        String requestBody = "{"
+                + "\"query\":\"" + query.replace("\"", "\\\"") + "\","
+                + "\"search_depth\":\"advanced\","
+                + "\"max_results\":" + limit + ","
+                + "\"include_answer\":false,"
+                + "\"include_raw_content\":false"
+                + "}";
 
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
