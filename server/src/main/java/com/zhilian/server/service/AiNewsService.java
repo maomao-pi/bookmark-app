@@ -186,7 +186,8 @@ public class AiNewsService {
         boolean isMinimax = baseUrl != null
                 && (baseUrl.toLowerCase().contains("minimaxi.com")
                     || baseUrl.toLowerCase().contains("minimax.io"));
-        boolean doUrlValidation = isSearchMode && !isMinimax;
+        // MiniMax-M2.7 是文本生成模型，会编造 URL，必须验证；联网搜索模式本身已做验证；非搜索模式也要验证
+        boolean doUrlValidation = isSearchMode || isMinimax;
 
         String prompt = isSearchMode
                 ? "推荐 " + limit + " 条近期热门的 AI、科技、编程领域文章。\n"
