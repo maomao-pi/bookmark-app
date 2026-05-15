@@ -319,12 +319,12 @@ public class AiNewsService {
         }
         StringBuilder sb = new StringBuilder();
         for (JsonNode block : contentArray) {
-            if ("text".equals(block.path("type").asText())) {
+            String blockType = block.path("type").asText("");
+            // MiniMax 返回 content 数组中：type=thinking 为思考过程（很长），type=text 为实际回复
+            // 只需要提取 type=text 的最终回复内容，忽略 thinking 块
+            if ("text".equals(blockType)) {
                 String t = block.path("text").asText("");
                 if (!t.isBlank()) {
-                    if (sb.length() > 0) {
-                        sb.append('\n');
-                    }
                     sb.append(t);
                 }
             }
@@ -360,18 +360,25 @@ public class AiNewsService {
                 return result;
             }
 
-            // 优先定位 JSON 数组范围
+            // 定位 JSON 数组：找第一个 '[' 之后的完整数组
             int start = json.indexOf('[');
             int end = json.lastIndexOf(']');
+            String jsonArrayStr;
             if (start >= 0 && end > start) {
-                json = json.substring(start, end + 1);
+                jsonArrayStr = json.substring(start, end + 1);
             } else {
-                // 截断场景：找不到完整数组时，尝试用正则逐个提取 {..."title":...} 对象
-                log.warn("[AiNewsService] 未找到完整 JSON 数组（可能被截断），尝试逐个提取对象: {}", json.substring(0, Math.min(300, json.length())));
+                log.warn("[AiNewsService] 未找到 JSON 数组，尝试正则提取: {}", json.substring(0, Math.min(200, json.length())));
                 return extractItemsByRegex(json, limit);
             }
 
-            JsonNode array = objectMapper.readTree(json);
+            JsonNode array;
+            try {
+                array = objectMapper.readTree(jsonArrayStr);
+            } catch (Exception parseEx) {
+                // JSON 数组截断或损坏，尝试用正则逐个提取完整对象
+                log.warn("[AiNewsService] JSON 解析失败（可能被截断），改用正则提取: {}", parseEx.getMessage());
+                return extractItemsByRegex(json, limit);
+            }
             if (!array.isArray()) return result;
 
             List<AiNewsItemVO> tempResult = new ArrayList<>();
@@ -401,8 +408,8 @@ public class AiNewsService {
             return tempResult;
         } catch (Exception e) {
             log.error("[AiNewsService] 解析 AI 咨讯 JSON 失败: {}", e.getMessage(), e);
+            return extractItemsByRegex(content, limit);
         }
-        return result;
     }
 
     /** 截断 JSON 的兜底提取：用正则逐个匹配 {..."title":..."url":...} 对象 */
