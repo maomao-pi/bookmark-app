@@ -223,7 +223,7 @@ public class AiNewsService {
                 + "\"query\":\"" + query.replace("\"", "\\\"") + "\","
                 + "\"search_depth\":\"advanced\","
                 + "\"max_results\":" + limit + ","
-                + "\"include_answer\":false,"
+                + "\"include_answer\":true,"
                 + "\"include_raw_content\":false"
                 + "}";
 
@@ -254,12 +254,15 @@ public class AiNewsService {
 
         JsonNode root = objectMapper.readTree(response);
         JsonNode results = root.path("results");
+        // Tavily 的 AI 生成的答案摘要（中文）
+        String tavilyAnswer = root.path("answer").asText("").trim();
         List<AiNewsItemVO> list = new ArrayList<>();
         if (results.isArray()) {
             for (int i = 0; i < results.size() && list.size() < limit; i++) {
                 JsonNode item = results.get(i);
                 String title = item.path("title").asText("").trim();
                 String itemUrl = item.path("url").asText("").trim();
+                // 优先用 Tavily 的 AI 摘要，其次用 content snippet
                 String content = item.path("content").asText("").trim();
                 if (title.isBlank() || itemUrl.isBlank()) continue;
 
@@ -275,6 +278,10 @@ public class AiNewsService {
                 vo.setModelSource("tavily");
                 list.add(vo);
             }
+        }
+        // 如果 Tavily 返回了全局 AI 摘要日志记录
+        if (!tavilyAnswer.isBlank()) {
+            log.info("[AiNewsService] Tavily AI 摘要: {}", tavilyAnswer.substring(0, Math.min(200, tavilyAnswer.length())));
         }
         log.info("[AiNewsService] Tavily 搜索完成，共 {} 条结果", list.size());
         return list;
