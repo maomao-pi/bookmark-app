@@ -34,11 +34,11 @@ export function SystemSettings({ api }: SystemSettingsProps) {
         'ai.text.baseUrl': settings['ai.text.baseUrl'] || settings['ai.baseUrl'] || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
         'ai.text.model': settings['ai.text.model'] || settings['ai.model'] || 'qwen3-plus',
 
-        // 联网搜索模型配置
+        // 联网搜索模型配置（默认 Minimax M2.7 / Anthropic 兼容）
         'ai.search.enabled': settings['ai.search.enabled'] === 'true',
         'ai.search.apiKey': settings['ai.search.apiKey'] || '',
-        'ai.search.baseUrl': settings['ai.search.baseUrl'] || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        'ai.search.model': settings['ai.search.model'] || 'qwen3-search',
+        'ai.search.baseUrl': settings['ai.search.baseUrl'] || 'https://api.minimaxi.com/anthropic',
+        'ai.search.model': settings['ai.search.model'] || 'MiniMax-M2.7',
 
         // 图片生成模型配置（Minimax）
         'ai.image.enabled': settings['ai.image.enabled'] === 'true',
@@ -61,39 +61,42 @@ export function SystemSettings({ api }: SystemSettingsProps) {
     }
   };
 
+  /** 将 Switch/布尔值安全转为 'true'/'false'，避免 undefined 被转成字符串 "undefined" */
+  const toBoolString = (val: unknown): string => val ? 'true' : 'false';
+
   const handleSave = async () => {
     if (!api) return;
     try {
       const values = await form.validateFields();
       const settings: Record<string, string> = {
         // 主题配置
-        'theme.defaultMode': values['theme.defaultMode'],
-        'theme.allowUserSwitch': String(values['theme.allowUserSwitch']),
+        'theme.defaultMode': values['theme.defaultMode'] || 'light',
+        'theme.allowUserSwitch': toBoolString(values['theme.allowUserSwitch']),
 
         // 文本模型配置
-        'ai.text.enabled': String(values['ai.text.enabled']),
+        'ai.text.enabled': toBoolString(values['ai.text.enabled']),
         'ai.text.apiKey': values['ai.text.apiKey'] || '',
         'ai.text.baseUrl': values['ai.text.baseUrl'] || '',
         'ai.text.model': values['ai.text.model'] || '',
 
         // 联网搜索模型配置
-        'ai.search.enabled': String(values['ai.search.enabled']),
+        'ai.search.enabled': toBoolString(values['ai.search.enabled']),
         'ai.search.apiKey': values['ai.search.apiKey'] || '',
         'ai.search.baseUrl': values['ai.search.baseUrl'] || '',
         'ai.search.model': values['ai.search.model'] || '',
 
         // 图片生成模型配置（Minimax）
-        'ai.image.enabled': String(values['ai.image.enabled']),
+        'ai.image.enabled': toBoolString(values['ai.image.enabled']),
         'ai.image.apiKey': values['ai.image.apiKey'] || '',
         'ai.image.model': values['ai.image.model'] || 'image-01',
 
         // 推荐配置
-        'recommend.internal.enabled': String(values['recommend.internal.enabled']),
-        'recommend.external.enabled': String(values['recommend.external.enabled']),
+        'recommend.internal.enabled': toBoolString(values['recommend.internal.enabled']),
+        'recommend.external.enabled': toBoolString(values['recommend.external.enabled']),
         'recommend.limit': String(values['recommend.limit'] || 10),
 
         // 整理建议配置
-        'ai.organizeEnabled': String(values['ai.organizeEnabled']),
+        'ai.organizeEnabled': toBoolString(values['ai.organizeEnabled']),
         'ai.organizeFrequencyDays': String(values['ai.organizeFrequencyDays'] || 7),
       };
       await api.updateSettings(settings);
@@ -217,7 +220,10 @@ export function SystemSettings({ api }: SystemSettingsProps) {
                 <Card bordered={false}>
                   <Alert
                     message="联网搜索模型用途"
-                    description="用于 AI 为你推荐功能，需要返回真实可访问的链接。推荐使用 qwen3-search 模型。"
+                    description={<>
+                      用于「AI 为你推荐」功能。默认走 <b>Minimax M2.7</b>（Anthropic 兼容协议，端点 <code>/v1/messages</code>）。
+                      也可改回 DashScope <code>qwen3-search</code> 等任意 OpenAI 兼容模型，地址含 <code>minimaxi.com</code> 时自动切换协议。
+                    </>}
                     type="info"
                     showIcon
                     style={{ marginBottom: 16 }}
@@ -226,13 +232,21 @@ export function SystemSettings({ api }: SystemSettingsProps) {
                     <Switch />
                   </Form.Item>
                   <Form.Item name="ai.search.apiKey" label="API Key">
-                    <Input.Password placeholder="请输入阿里云百炼 API Key（可与文本模型相同或不同）" />
+                    <Input.Password placeholder="请输入 Minimax Token Plan / 按量计费 API Key" />
                   </Form.Item>
-                  <Form.Item name="ai.search.baseUrl" label="API 地址">
-                    <Input placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" />
+                  <Form.Item
+                    name="ai.search.baseUrl"
+                    label="API 地址"
+                    extra="Minimax：https://api.minimaxi.com/anthropic ；DashScope：https://dashscope.aliyuncs.com/compatible-mode/v1"
+                  >
+                    <Input placeholder="https://api.minimaxi.com/anthropic" />
                   </Form.Item>
-                  <Form.Item name="ai.search.model" label="模型名称">
-                    <Input placeholder="qwen3-search" />
+                  <Form.Item
+                    name="ai.search.model"
+                    label="模型名称"
+                    extra="Minimax 推荐 MiniMax-M2.7；DashScope 联网搜索可用 qwen3-search"
+                  >
+                    <Input placeholder="MiniMax-M2.7" />
                   </Form.Item>
                   <Button
                     icon={<ExperimentOutlined />}
