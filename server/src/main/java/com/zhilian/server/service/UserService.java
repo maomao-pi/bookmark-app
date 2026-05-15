@@ -145,15 +145,12 @@ public class UserService {
         return result;
     }
     
-    public User updateUserProfile(String username, UserApiController.UpdateProfileRequest request) {
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getUsername, username);
-        User user = userMapper.selectOne(wrapper);
-        
+    public User updateUserProfile(Long userId, UserApiController.UpdateProfileRequest request) {
+        User user = userMapper.selectById(userId);
         if (user == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        
+
         if (request.username != null) {
             user.setUsername(request.username);
         }
@@ -163,11 +160,64 @@ public class UserService {
         if (request.avatar != null) {
             user.setAvatar(request.avatar);
         }
-        
+        if (request.nickname != null) {
+            user.setNickname(request.nickname);
+        }
+        if (request.bio != null) {
+            user.setBio(request.bio);
+        }
+
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
         user.setPassword(null);
         return user;
+    }
+
+    public User updateExtendedProfile(Long userId, UserApiController.ExtendedProfileRequest request) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+
+        if (request.nickname != null) {
+            user.setNickname(request.nickname);
+        }
+        if (request.bio != null) {
+            user.setBio(request.bio);
+        }
+        if (request.avatar != null) {
+            user.setAvatar(request.avatar);
+        }
+
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        user.setPassword(null);
+        return user;
+    }
+
+    public void updateAvatar(Long userId, String avatarUrl) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        user.setAvatar(avatarUrl);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+    }
+
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "当前密码错误");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
     }
      
     public User createUser(User user) {

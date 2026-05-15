@@ -415,6 +415,10 @@ export class AdminApi {
     return this.request<void>('PUT', '/api/admin/password', payload);
   }
 
+  resetAdminPassword(id: number, password: string) {
+    return this.request<void>('PUT', `/api/admin/${id}/password`, { password });
+  }
+
   updateAdminPermissions(id: number, permissions: string) {
     return this.request<AdminUser>('PUT', `/api/admin/${id}/permissions`, { permissions });
   }

@@ -18,7 +18,11 @@ public class User {
     private String password;
     
     private String avatar;
-    
+
+    private String nickname;
+
+    private String bio;
+
     private String role;  // admin, user
     
     private String status;  // active, disabled

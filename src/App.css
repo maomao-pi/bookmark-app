@@ -396,20 +396,35 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 12px;
-  background: var(--bg-tag);
-  border-radius: 20px;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
 }
 
-.user-avatar {
-  background: var(--accent) !important;
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  line-height: 1.25;
 }
 
 .user-name {
   font-size: 14px;
   color: var(--text-primary);
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .logout-btn {

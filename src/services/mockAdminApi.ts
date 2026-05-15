@@ -77,6 +77,7 @@ export class MockAdminApi {
     await delay(500);
     if (username === 'admin' && password === 'admin123') {
       return {
+        id: 1,
         token: 'mock-token-' + Date.now(),
         username: 'admin',
         role: 'super_admin',

@@ -66,6 +66,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ApiResponse<Void> handleException(Exception ex) {
+        System.out.println("[GlobalExceptionHandler] " + ex.getClass().getName() + ": " + ex.getMessage());
+        ex.printStackTrace();
         return ApiResponse.error(ErrorCode.INTERNAL_ERROR, "系统异常，请稍后重试");
     }
 }

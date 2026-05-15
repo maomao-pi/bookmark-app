@@ -13,6 +13,7 @@ export interface PageData<T> {
 }
 
 export interface AdminLoginResponse {
+  id: number;
   token: string;
   username: string;
   avatar?: string;

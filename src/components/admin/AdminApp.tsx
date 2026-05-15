@@ -13,6 +13,21 @@ import { OperationLogs } from './OperationLogs';
 import { AdminManagement } from './AdminManagement';
 import { AiLogs } from './AiLogs';
 import { AdminApi } from '../../services/adminApi';
+
+/** 解码 JWT payload 获取 admin id（第一个 claim） */
+function decodeAdminIdFromToken(token: string): number {
+  try {
+    const payload = token.split('.')[1];
+    // base64url → base64
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(base64);
+    const claims = JSON.parse(json);
+    // 第一个 claim 是 adminId（对应 JwtUtil.generateToken 的第一个参数）
+    return claims.adminId ?? claims.sub ?? Object.values(claims)[0];
+  } catch {
+    return 0;
+  }
+}
 import { useNotifications } from '../../hooks/useNotifications';
 import type { AdminLoginResponse } from '../../types/admin';
 import type { NotificationItem } from '../../types/admin';
@@ -97,7 +112,12 @@ export function AdminApp() {
     
     if (savedToken && savedAdminInfo) {
       setToken(savedToken);
-      setAdminInfo(JSON.parse(savedAdminInfo));
+      const parsed = JSON.parse(savedAdminInfo) as AdminLoginResponse;
+      // 兼容旧存储（无 id 字段）：从 token 解码补全
+      if (!parsed.id || parsed.id === 0) {
+        parsed.id = decodeAdminIdFromToken(savedToken);
+      }
+      setAdminInfo(parsed);
       setIsLoggedIn(true);
     }
   }, []);
@@ -134,7 +154,9 @@ export function AdminApp() {
   }, [token]);
 
   const handleLoginSuccess = (newToken: string, adminData: { username: string; avatar?: string; role: string; permissions?: string[] }) => {
+    const adminId = decodeAdminIdFromToken(newToken);
     const adminLoginResponse: AdminLoginResponse = {
+      id: adminId,
       token: newToken,
       username: adminData.username,
       avatar: adminData.avatar,
@@ -207,7 +229,7 @@ export function AdminApp() {
       case 'settings':
         return <SystemSettings api={api} />;
       case 'admins':
-        return <AdminManagement api={api} currentAdminRole={adminInfo?.role} />;
+        return <AdminManagement api={api} currentAdminRole={adminInfo?.role} currentAdminId={adminInfo?.id} />;
       case 'ai-logs':
         return <AiLogs api={api} />;
       default:

@@ -23,9 +23,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/user")
@@ -93,11 +99,115 @@ public class UserApiController {
         if (authentication == null) {
             return ApiResponse.error("未登录");
         }
-        String username = authentication.getName();
-        User user = userService.updateUserProfile(username, request);
+        Long userId = getUserIdFromAuth(authentication);
+        if (userId == null) {
+            return ApiResponse.error("无法识别用户身份");
+        }
+        User user = userService.updateUserProfile(userId, request);
         return ApiResponse.success(user);
     }
-    
+
+    @PutMapping("/profile/extended")
+    public ApiResponse<User> updateExtendedProfile(Authentication authentication, @RequestBody ExtendedProfileRequest request) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        Long userId = getUserIdFromAuth(authentication);
+        if (userId == null) {
+            return ApiResponse.error("无法识别用户身份");
+        }
+        User user = userService.updateExtendedProfile(userId, request);
+        return ApiResponse.success(user);
+    }
+
+    @PostMapping("/auth/change-password")
+    public ApiResponse<Void> changePassword(Authentication authentication, @RequestBody ChangePasswordRequest request) {
+        if (authentication == null) {
+            return ApiResponse.error("未登录");
+        }
+        Long userId = getUserIdFromAuth(authentication);
+        if (userId == null) {
+            return ApiResponse.error("无法识别用户身份");
+        }
+        userService.changePassword(userId, request.oldPassword, request.newPassword);
+        return ApiResponse.success(null);
+    }
+
+    /**
+     * 从 Authentication principal 中提取 userId
+     * 普通用户: principal 是 userId 字符串 (toString of Long)
+     */
+    private Long getUserIdFromAuth(Authentication authentication) {
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof String) {
+            try {
+                return Long.parseLong((String) principal);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static final String AVATAR_UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/icons/";
+
+    @PostMapping("/profile/avatar")
+    public ApiResponse<Map<String, String>> uploadAvatar(Authentication authentication,
+                                                        @RequestParam("file") MultipartFile file) {
+        System.out.println("[uploadAvatar] auth=" + (authentication != null ? authentication.getName() : "NULL"));
+        System.out.println("[uploadAvatar] file=" + (file != null ? file.getOriginalFilename() + " (" + file.getSize() + " bytes)" : "NULL"));
+        if (authentication == null) {
+            System.out.println("[uploadAvatar] ERROR: authentication is null");
+            return ApiResponse.error("未登录");
+        }
+        if (file == null || file.isEmpty()) {
+            System.out.println("[uploadAvatar] ERROR: file is null or empty");
+            return ApiResponse.error(400, "请选择图片文件");
+        }
+        String contentType = file.getContentType();
+        System.out.println("[uploadAvatar] contentType=" + contentType);
+        if (contentType == null || !contentType.startsWith("image/")) {
+            System.out.println("[uploadAvatar] ERROR: not an image");
+            return ApiResponse.error(400, "仅支持图片文件");
+        }
+        try {
+            // 确保目录存在
+            Path uploadPath = Paths.get(AVATAR_UPLOAD_DIR);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+            // 生成唯一文件名
+            String originalFilename = file.getOriginalFilename();
+            String extension = "";
+            if (originalFilename != null && originalFilename.contains(".")) {
+                extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            }
+            String filename = UUID.randomUUID().toString().replace("-", "") + extension;
+            Path filePath = uploadPath.resolve(filename);
+            Files.write(filePath, file.getBytes());
+            String avatarUrl = "/uploads/icons/" + filename;
+            System.out.println("[uploadAvatar] avatarUrl=" + avatarUrl);
+            // 更新用户头像（用户认证 getName() 返回 userId 字符串）
+            Object principal = authentication.getPrincipal();
+            System.out.println("[uploadAvatar] principal type=" + principal.getClass().getName() + ", value=" + principal);
+            Long userId;
+            if (principal instanceof String) {
+                userId = Long.parseLong((String) principal);
+                System.out.println("[uploadAvatar] parsed userId=" + userId);
+            } else {
+                System.out.println("[uploadAvatar] ERROR: unexpected principal type");
+                return ApiResponse.error("无法识别用户身份");
+            }
+            userService.updateAvatar(userId, avatarUrl);
+            System.out.println("[uploadAvatar] SUCCESS");
+            return ApiResponse.success(Map.of("avatarUrl", avatarUrl));
+        } catch (Exception e) {
+            System.out.println("[uploadAvatar] ERROR: " + e.getClass().getName() + " - " + e.getMessage());
+            e.printStackTrace();
+            return ApiResponse.error(500, "保存头像失败: " + e.getMessage());
+        }
+    }
+
     @GetMapping("/categories")
     public ApiResponse<List<Category>> getUserCategories(Authentication authentication) {
         if (authentication == null) {
@@ -346,5 +456,18 @@ public class UserApiController {
         public String username;
         public String email;
         public String avatar;
+        public String nickname;
+        public String bio;
+    }
+
+    public static class ExtendedProfileRequest {
+        public String nickname;
+        public String bio;
+        public String avatar;
+    }
+
+    public static class ChangePasswordRequest {
+        public String oldPassword;
+        public String newPassword;
     }
 }

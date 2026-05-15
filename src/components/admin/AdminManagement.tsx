@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Input, Space, Tag, Modal, Typography, Popconfirm, message, Select, Form, Avatar, Checkbox, Switch } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, UserOutlined, SettingOutlined, KeyOutlined, CopyOutlined, ReloadOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { AdminUser, PageData } from '../../types/admin';
 
@@ -10,15 +10,20 @@ const { Search } = Input;
 interface AdminManagementProps {
   api: AdminApi | null;
   currentAdminRole?: string;
+  currentAdminId?: number;
 }
 
-export function AdminManagement({ api, currentAdminRole }: AdminManagementProps) {
+export function AdminManagement({ api, currentAdminRole, currentAdminId }: AdminManagementProps) {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AdminUser[]>([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
   const [keyword, setKeyword] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [permissionModalVisible, setPermissionModalVisible] = useState(false);
+  const [resetPwdModalVisible, setResetPwdModalVisible] = useState(false);
+  const [resetPwdAdmin, setResetPwdAdmin] = useState<AdminUser | null>(null);
+  const [resetPwdLoading, setResetPwdLoading] = useState(false);
+  const [generatedPwd, setGeneratedPwd] = useState('');
   const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
   const [selectedAdminForPermission, setSelectedAdminForPermission] = useState<AdminUser | null>(null);
   const [permissionForm] = Form.useForm();
@@ -84,7 +89,7 @@ export function AdminManagement({ api, currentAdminRole }: AdminManagementProps)
     form.resetFields();
     setModalVisible(true);
     setTimeout(() => {
-      form.setFieldsValue({ status: 'active', role: 'admin' });
+      form.setFieldsValue({ status: 'active', role: 'admin', password: generateStrongPwd() });
     }, 0);
   };
 
@@ -105,9 +110,25 @@ export function AdminManagement({ api, currentAdminRole }: AdminManagementProps)
         status: values.status || 'active',
       };
       if (editingAdmin) {
-        await api.updateAdmin(editingAdmin.id, payload);
+        // 如果填写了新密码，先重置密码
+        if (values.password) {
+          await api.resetAdminPassword(editingAdmin.id, values.password);
+        }
+        // 再更新其他信息（不含 password 字段）
+        const { password, ...rest } = payload;
+        await api.updateAdmin(editingAdmin.id, rest);
         message.success('管理员已更新');
       } else {
+        // 新增前检查用户名是否已存在
+        const existing: PageData<AdminUser> = await api.getAdmins({
+          pageNum: 1,
+          pageSize: 1,
+          keyword: values.username,
+        });
+        if (existing.records.length > 0) {
+          message.error('用户名已存在');
+          return;
+        }
         await api.createAdmin(payload);
         message.success('管理员已创建');
       }
@@ -147,6 +168,45 @@ export function AdminManagement({ api, currentAdminRole }: AdminManagementProps)
     const permissions = admin.permissions ? JSON.parse(admin.permissions) : [];
     permissionForm.setFieldsValue({ permissions });
     setPermissionModalVisible(true);
+  };
+
+  // 生成随机强密码
+  const generateStrongPwd = (length = 16) => {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+    let pwd = '';
+    for (let i = 0; i < length; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return pwd;
+  };
+
+  const handleResetPassword = (admin: AdminUser) => {
+    setResetPwdAdmin(admin);
+    setGeneratedPwd(generateStrongPwd());
+    setResetPwdModalVisible(true);
+  };
+
+  const handleConfirmResetPassword = async () => {
+    if (!api || !resetPwdAdmin) return;
+    setResetPwdLoading(true);
+    try {
+      await api.resetAdminPassword(resetPwdAdmin.id, generatedPwd);
+      message.success('密码已重置，可复制新密码给管理员');
+      setResetPwdModalVisible(false);
+    } catch (error) {
+      console.error('[AdminManagement] resetPassword error:', error);
+      message.error(error instanceof Error ? error.message : '密码重置失败');
+    } finally {
+      setResetPwdLoading(false);
+    }
+  };
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(generatedPwd).then(() => {
+      message.success('密码已复制到剪贴板');
+    }).catch(() => {
+      message.error('复制失败，请手动复制');
+    });
   };
 
   const handleSavePermissions = async () => {
@@ -228,6 +288,16 @@ export function AdminManagement({ api, currentAdminRole }: AdminManagementProps)
               权限
             </Button>
           )}
+          {isSuperAdmin && record.id !== currentAdminId && (
+            <Button
+              type="text"
+              size="small"
+              icon={<KeyOutlined />}
+              onClick={() => handleResetPassword(record)}
+            >
+              重置密码
+            </Button>
+          )}
           <Button
             type="text"
             size="small"
@@ -236,7 +306,7 @@ export function AdminManagement({ api, currentAdminRole }: AdminManagementProps)
           >
             编辑
           </Button>
-          {isSuperAdmin && (
+          {isSuperAdmin && record.id !== currentAdminId && (
             <Popconfirm
               title="确定删除此管理员吗？"
               onConfirm={() => handleDelete(record)}
@@ -300,8 +370,28 @@ export function AdminManagement({ api, currentAdminRole }: AdminManagementProps)
             <Input placeholder="请输入用户名" disabled={!!editingAdmin} />
           </Form.Item>
           {!editingAdmin && (
-            <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }]}>
+            <Form.Item
+              name="password"
+              label="密码"
+              rules={[{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少6位' }]}
+              extra={
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<ReloadOutlined />}
+                  onClick={() => form.setFieldsValue({ password: generateStrongPwd() })}
+                  style={{ padding: 0, height: 'auto' }}
+                >
+                  重新生成
+                </Button>
+              }
+            >
               <Input.Password placeholder="请输入密码" />
+            </Form.Item>
+          )}
+          {editingAdmin && isSuperAdmin && (
+            <Form.Item name="password" label="新密码" extra="不填则保持原密码">
+              <Input.Password placeholder="留空则保持不变" />
             </Form.Item>
           )}
           {isSuperAdmin && (
@@ -340,6 +430,37 @@ export function AdminManagement({ api, currentAdminRole }: AdminManagementProps)
             <Checkbox.Group options={moduleOptions} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`重置「${resetPwdAdmin?.username}」的密码`}
+        open={resetPwdModalVisible}
+        onCancel={() => setResetPwdModalVisible(false)}
+        onOk={handleConfirmResetPassword}
+        confirmLoading={resetPwdLoading}
+        okText="确认重置"
+      >
+        <div style={{ padding: '8px 0' }}>
+          <p style={{ marginBottom: 12, color: '#666' }}>
+            系统已为该管理员生成随机强密码，请复制后妥善保存：
+          </p>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Input.Password
+              value={generatedPwd}
+              readOnly
+              style={{ fontFamily: 'monospace', fontSize: 16, flex: 1 }}
+            />
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={() => setGeneratedPwd(generateStrongPwd())}
+              aria-label="刷新密码"
+            />
+            <Button icon={<CopyOutlined />} onClick={handleCopyPassword}>
+              复制
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

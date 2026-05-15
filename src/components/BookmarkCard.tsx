@@ -1,5 +1,5 @@
 import { Card, Tag, Button, Tooltip } from 'antd';
-import { EyeOutlined, EditOutlined, DeleteOutlined, PushpinFilled } from '@ant-design/icons';
+import { EyeOutlined, EditOutlined, DeleteOutlined, PushpinFilled, LinkOutlined } from '@ant-design/icons';
 import type { Bookmark } from '../types';
 import { logger } from '../utils/logger';
 import './BookmarkCard.css';
@@ -110,6 +110,16 @@ export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete,
           </div>
           {showActions && (
             <div className="bookmark-actions" onClick={(e) => e.stopPropagation()}>
+              <Tooltip title="直接访问">
+                <Button
+                  type="text"
+                  icon={<LinkOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(bookmark.url, '_blank', 'noopener,noreferrer');
+                  }}
+                />
+              </Tooltip>
               <Tooltip title="查看详情">
                 <Button 
                   type="text" 

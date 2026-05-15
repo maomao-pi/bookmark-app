@@ -7,6 +7,7 @@ import com.zhilian.server.dto.AdminProfileUpdateRequest;
 import com.zhilian.server.dto.LoginRequest;
 import com.zhilian.server.dto.LoginResponse;
 import com.zhilian.server.dto.PageData;
+import com.zhilian.server.dto.ResetPasswordRequest;
 import com.zhilian.server.dto.UpdatePasswordRequest;
 import com.zhilian.server.entity.Admin;
 import com.zhilian.server.service.AdminService;
@@ -151,6 +152,26 @@ public class AdminController {
         operationLogService.log(admin.getId(), "UPDATE_PASSWORD", "admin", admin.getId(), httpRequest.getRemoteAddr(), "success",
                 Map.of("username", admin.getUsername()));
         return ApiResponse.success();
+    }
+
+    @PutMapping("/{id}/password")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ApiResponse<Void> resetAdminPassword(@PathVariable @Positive(message = "id 必须大于 0") Long id,
+                                                @Valid @RequestBody ResetPasswordRequest request,
+                                                Authentication authentication,
+                                                HttpServletRequest httpRequest) {
+        Admin operator = (Admin) authentication.getPrincipal();
+        System.out.println("[resetAdminPassword] id=" + id + ", password len=" + (request.getPassword() == null ? 0 : request.getPassword().length()));
+        try {
+            adminService.resetPassword(id, request.getPassword());
+            operationLogService.log(operator.getId(), "RESET_PASSWORD", "admin", id, httpRequest.getRemoteAddr(), "success",
+                    Map.of());
+            return ApiResponse.success();
+        } catch (Exception e) {
+            System.out.println("[resetAdminPassword] ERROR: " + e.getClass().getName() + " - " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @PutMapping("/{id}/permissions")

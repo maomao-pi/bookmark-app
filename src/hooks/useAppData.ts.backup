@@ -42,7 +42,7 @@ function createSeedData(): AppData {
 
   const bookmark2: Bookmark = {
     id: 'bk-seed-2',
-    title: '知链方舟笔记',
+    title: 'Linkbox笔记',
     url: 'https://example.com/notes',
     description: '日常笔记与摘录',
     categoryId: catNotes.id,

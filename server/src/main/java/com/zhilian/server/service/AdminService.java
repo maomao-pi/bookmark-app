@@ -202,11 +202,21 @@ public class AdminService {
         if (admin == null) {
             throw new RuntimeException("管理员不存在");
         }
-        
+
         if (!passwordEncoder.matches(oldPassword, admin.getPassword())) {
             throw new RuntimeException("原密码错误");
         }
-        
+
+        admin.setPassword(passwordEncoder.encode(newPassword));
+        admin.setUpdatedAt(LocalDateTime.now());
+        adminMapper.updateById(admin);
+    }
+
+    public void resetPassword(Long id, String newPassword) {
+        Admin admin = adminMapper.selectById(id);
+        if (admin == null) {
+            throw new RuntimeException("管理员不存在");
+        }
         admin.setPassword(passwordEncoder.encode(newPassword));
         admin.setUpdatedAt(LocalDateTime.now());
         adminMapper.updateById(admin);

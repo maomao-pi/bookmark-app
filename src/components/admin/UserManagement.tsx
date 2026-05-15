@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Input, Modal, Typography, message, Avatar, Form, Switch, Tag, Dropdown, type MenuProps } from 'antd';
-import { DeleteOutlined, EyeOutlined, KeyOutlined, MoreOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EyeOutlined, KeyOutlined, MoreOutlined, UserOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { AppUser, PageData } from '../../types/admin';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 const { Title, Text } = Typography;
 const { Search, Password } = Input;
@@ -130,12 +131,15 @@ export function UserManagement({ api }: UserManagementProps) {
       dataIndex: 'avatar',
       key: 'avatar',
       width: 60,
-      render: (_: string, record: AppUser) => (
-        <Avatar 
-          src={record.avatar || generateAvatar(record.username)} 
-          icon={!record.avatar}
-        />
-      ),
+      render: (_: string, record: AppUser) => {
+        const avatarSrc = resolveMediaUrl(record.avatar) || generateAvatar(record.username);
+        return (
+          <Avatar
+            src={avatarSrc}
+            icon={!record.avatar ? <UserOutlined /> : undefined}
+          />
+        );
+      },
     },
     {
       title: '用户名',

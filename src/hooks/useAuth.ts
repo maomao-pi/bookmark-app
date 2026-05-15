@@ -6,7 +6,8 @@ export interface UserSession {
   id: string;
   username: string;
   email: string;
-  avatar?: string;
+  avatar?: string | null;
+  nickname?: string | null;
   createdAt: string;
 }
 
@@ -26,7 +27,9 @@ export function useAuth() {
           const user = JSON.parse(savedUser);
           setCurrentUser({
             ...user,
-            avatar: profile.avatar
+            avatar: profile.avatar,
+            nickname: profile.nickname ?? user.nickname ?? null,
+            email: profile.email ?? user.email,
           });
           setIsOnline(true);
         } catch (err) {
@@ -63,7 +66,8 @@ export function useAuth() {
         username: result.user.username,
         email: result.user.email,
         avatar: result.user.avatar,
-        createdAt: new Date().toISOString()
+        nickname: result.user.nickname ?? nickname,
+        createdAt: new Date().toISOString(),
       };
       localStorage.setItem('userInfo', JSON.stringify(session));
       setCurrentUser(session);
@@ -87,7 +91,8 @@ export function useAuth() {
         username: result.user.username,
         email: result.user.email,
         avatar: result.user.avatar,
-        createdAt: new Date().toISOString()
+        nickname: result.user.nickname ?? null,
+        createdAt: new Date().toISOString(),
       };
       localStorage.setItem('userInfo', JSON.stringify(session));
       setCurrentUser(session);
@@ -105,6 +110,15 @@ export function useAuth() {
     setCurrentUser(null);
     setIsOnline(false);
     window.location.reload();
+  }, []);
+
+  const patchSession = useCallback((updates: Partial<UserSession>) => {
+    setCurrentUser(prev => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updates };
+      localStorage.setItem('userInfo', JSON.stringify(next));
+      return next;
+    });
   }, []);
 
   const updateProfile = useCallback(async (updates: { username?: string; email?: string }): Promise<{ success: boolean; message: string }> => {
@@ -138,6 +152,7 @@ export function useAuth() {
     register,
     login,
     logout,
-    updateProfile
+    updateProfile,
+    patchSession,
   };
 }

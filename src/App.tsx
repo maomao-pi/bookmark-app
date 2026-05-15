@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ConfigProvider, theme as antTheme, Layout, Input, Button, Empty, message, Dropdown, Avatar, Space, Menu, Tooltip, type MenuProps } from 'antd';
+import { ConfigProvider, theme as antTheme, Layout, Input, Button, Empty, message, Dropdown, Space, Menu, Tooltip, type MenuProps } from 'antd';
 import { SunOutlined, MoonOutlined, PlusOutlined, FolderOutlined, SortAscendingOutlined, LogoutOutlined, UserOutlined, BookOutlined, HomeOutlined, CompassOutlined, SettingOutlined, SettingFilled, TeamOutlined, ThunderboltOutlined, AppstoreOutlined, ReadOutlined, TagsOutlined, BarChartOutlined, RobotOutlined, GlobalOutlined, LinkOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useAppData } from './hooks/useAppData';
 import { useTheme } from './hooks/useTheme';
@@ -10,13 +10,13 @@ import { BookmarkCard } from './components/BookmarkCard';
 import { BookmarkModal } from './components/BookmarkModal';
 import { AuthModal } from './components/AuthModal';
 import { DetailModal } from './components/DetailModal';
-import { CategoryModal } from './components/CategoryModal';
 import { CategoryManageModal } from './components/CategoryManageModal';
 import { ArticleModal } from './components/ArticleModal';
 import { ProfileModal } from './components/ProfileModal';
 import { AiNewsSection } from './components/AiNewsSection';
 import type { Bookmark, BookmarkFormData, Article, ArticleFormData, Category } from './types';
-import { logger } from './utils/logger';
+import { UserAvatar } from './components/UserAvatar';
+import { getUserDisplayName, getUserSubtitle } from './utils/userAvatar';
 import './App.css';
 
 const { Header, Content } = Layout;
@@ -57,7 +57,7 @@ function App() {
   } = useAppData();
 
   const { toggleTheme, isDark, allowUserSwitch } = useTheme();
-  const { currentUser, isAuthenticated, logout } = useAuth();
+  const { currentUser, isAuthenticated, logout, patchSession } = useAuth();
   
   const [currentPage, setCurrentPage] = useState<PageType>(() => {
     const token = localStorage.getItem('userToken');
@@ -76,7 +76,6 @@ function App() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [currentBookmark, setCurrentBookmark] = useState<Bookmark | null>(null);
   
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [pendingCategoryForBookmark, setPendingCategoryForBookmark] = useState(false);
   
@@ -162,42 +161,35 @@ function App() {
 
   const handleAddCategory = (returnToBookmark = false) => {
     setPendingCategoryForBookmark(returnToBookmark);
-    setEditingCategory(null);
-    setCategoryModalOpen(true);
+    setCategoryManageModalOpen(true);
   };
 
-  const handleEditCategory = (category: Category) => {
-    setEditingCategory(category);
-    setCategoryManageModalOpen(false);
-    setCategoryModalOpen(true);
-  };
-
-  const handleSaveCategory = async (name: string) => {
+  const handleSaveCategory = async (name: string, editingCategoryId?: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) {
       message.error('分类名称不能为空');
       return;
     }
 
-    if (editingCategory) {
-      const duplicate = categories.some(c => c.id !== editingCategory.id && c.name === trimmedName);
+    if (editingCategoryId) {
+      // Editing existing category
+      const duplicate = categories.some(c => c.id !== editingCategoryId && c.name === trimmedName);
       if (duplicate) {
         message.error('分类名称已存在');
         return;
       }
 
-      const updated = await updateCategory(editingCategory.id, trimmedName);
+      const updated = await updateCategory(editingCategoryId, trimmedName);
       if (!updated) {
         message.error('分类更新失败，请重试');
         return;
       }
       setCategoryFilter(updated.id);
       message.success(`分类已更新，已切换到「${updated.name}」`);
-      setCategoryModalOpen(false);
-      setEditingCategory(null);
       return;
     }
 
+    // Adding new category
     if (categories.some(c => c.name === trimmedName)) {
       message.error('分类名称已存在');
       return;
@@ -211,8 +203,6 @@ function App() {
 
     setCategoryFilter(created.id);
     message.success(`分类已添加，已切换到「${created.name}」`);
-    setCategoryModalOpen(false);
-    setEditingCategory(null);
     if (pendingCategoryForBookmark) {
       setPendingCategoryForBookmark(false);
       setBookmarkModalOpen(true);
@@ -807,12 +797,15 @@ function App() {
                     trigger={['click']}
                   >
                     <div className="user-info" style={{ cursor: 'pointer' }}>
-                      <Avatar 
-                        size={32} 
-                        icon={<UserOutlined />} 
-                        className="user-avatar"
+                      <UserAvatar
+                        avatar={currentUser.avatar}
+                        name={getUserDisplayName(currentUser)}
+                        size={32}
                       />
-                      <span className="user-name">{currentUser.username}</span>
+                      <div className="user-info-text">
+                        <span className="user-name">{getUserDisplayName(currentUser)}</span>
+                        <span className="user-subtitle">{getUserSubtitle(currentUser)}</span>
+                      </div>
                     </div>
                   </Dropdown>
                   {allowUserSwitch && (
@@ -902,26 +895,16 @@ function App() {
           }}
         />
 
-        <CategoryModal
-          open={categoryModalOpen}
-          categoryName={editingCategory?.name}
-          onSave={handleSaveCategory}
-          onCancel={() => {
-            setCategoryModalOpen(false);
-            setEditingCategory(null);
-          }}
-        />
-
         <CategoryManageModal
           open={categoryManageModalOpen}
           categories={categories}
           bookmarks={bookmarks}
-          onClose={() => setCategoryManageModalOpen(false)}
-          onAdd={() => {
+          onClose={() => {
             setCategoryManageModalOpen(false);
-            handleAddCategory(false);
+            setEditingCategory(null);
           }}
-          onEdit={handleEditCategory}
+          editingCategory={editingCategory}
+          onSave={handleSaveCategory}
           onDelete={handleDeleteCategory}
         />
 
@@ -949,19 +932,11 @@ function App() {
 
         <ProfileModal
           open={profileModalOpen}
-          user={currentUser ? { id: currentUser.id, username: currentUser.username, email: currentUser.email || '', avatar: currentUser.avatar, nickname: (currentUser as unknown as { nickname?: string | null }).nickname ?? null } : null}
+          user={currentUser ? { id: currentUser.id, username: currentUser.username, email: currentUser.email || '', avatar: currentUser.avatar, nickname: currentUser.nickname ?? null } : null}
           onClose={() => setProfileModalOpen(false)}
           onUpdated={(updated) => {
-            const info = localStorage.getItem('userInfo');
-            if (info) {
-              try {
-                const parsed = JSON.parse(info);
-                localStorage.setItem('userInfo', JSON.stringify({ ...parsed, ...updated }));
-                refreshData();
-              } catch (err) {
-                logger.warn('App.ProfileModal.onUpdated', 'Failed to update localStorage:', err);
-              }
-            }
+            patchSession(updated);
+            refreshData();
           }}
         />
 

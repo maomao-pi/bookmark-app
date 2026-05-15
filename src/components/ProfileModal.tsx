@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react';
-import { Modal, Form, Input, Button, Avatar, Upload, message, Tabs, Divider, ConfigProvider } from 'antd';
-import { UserOutlined, CameraOutlined, LockOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { Modal, Form, Input, Button, Upload, message, Tabs, Divider, ConfigProvider } from 'antd';
+import type { RcFile } from 'antd/es/upload/interface';
+import { CameraOutlined, LockOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { userApi } from '../services/userApi';
-import type { UploadChangeParam, UploadFile } from 'antd/es/upload';
 import { logger } from '../utils/logger';
+import { getUserDisplayName } from '../utils/userAvatar';
+import { UserAvatar } from './UserAvatar';
 import './ProfileModal.css';
 
 export interface UserSession {
@@ -51,17 +53,16 @@ export function ProfileModal({ open, user, onClose, onUpdated }: ProfileModalPro
   const [profileForm] = Form.useForm();
   const [pwdForm] = Form.useForm();
 
-  const handleAvatarChange = async (info: UploadChangeParam<UploadFile>) => {
-    const file = info.file.originFileObj;
-    if (!file) return;
+  const handleAvatarBeforeUpload = async (file: RcFile) => {
     try {
       const compressed = await compressImage(file);
       setAvatarPreview(compressed);
       avatarFileRef.current = file;
     } catch (err) {
-      logger.error('ProfileModal.handleAvatarChange', err, 'Image compression failed');
+      logger.error('ProfileModal.handleAvatarBeforeUpload', err, 'Image compression failed');
       message.error('图片处理失败，请重试');
     }
+    return false;
   };
 
   const handleProfileSave = async (values: { nickname: string; bio: string }) => {
@@ -69,14 +70,18 @@ export function ProfileModal({ open, user, onClose, onUpdated }: ProfileModalPro
     try {
       let avatarUrl: string | undefined;
       if (avatarFileRef.current) {
+        console.log('[ProfileModal] uploading avatar, file=', avatarFileRef.current);
         const res = await userApi.uploadAvatar(avatarFileRef.current);
+        console.log('[ProfileModal] avatar upload result=', res);
         avatarUrl = res.avatarUrl;
       }
+      console.log('[ProfileModal] calling updateExtendedProfile, avatarUrl=', avatarUrl, 'nickname=', values.nickname, 'bio=', values.bio);
       await userApi.updateExtendedProfile({
         nickname: values.nickname,
         bio: values.bio,
         ...(avatarUrl ? { avatar: avatarUrl } : {}),
       });
+      console.log('[ProfileModal] updateExtendedProfile success');
       message.success('资料已更新');
       onUpdated({
         nickname: values.nickname,
@@ -84,7 +89,9 @@ export function ProfileModal({ open, user, onClose, onUpdated }: ProfileModalPro
         ...(avatarUrl ? { avatar: avatarUrl } : {}),
       });
       avatarFileRef.current = null;
+      setAvatarPreview(null);
     } catch (err) {
+      console.error('[ProfileModal] handleProfileSave error:', err);
       message.error(err instanceof Error ? err.message : '更新失败');
     } finally {
       setLoading(false);
@@ -109,8 +116,6 @@ export function ProfileModal({ open, user, onClose, onUpdated }: ProfileModalPro
     }
   };
 
-  const currentAvatar = avatarPreview || user?.avatar;
-
   const profileTab = (
     <Form
       form={profileForm}
@@ -121,17 +126,15 @@ export function ProfileModal({ open, user, onClose, onUpdated }: ProfileModalPro
     >
       {/* 头像 */}
       <div className="profile-avatar-section">
-        <Avatar
-          src={currentAvatar}
-          icon={!currentAvatar ? <UserOutlined /> : undefined}
+        <UserAvatar
+          avatar={avatarPreview || user?.avatar}
+          name={getUserDisplayName({ nickname: user?.nickname, username: user?.username || '?' })}
           size={80}
-          style={{ background: '#2563eb' }}
         />
         <Upload
           accept="image/*"
           showUploadList={false}
-          beforeUpload={() => false}
-          onChange={handleAvatarChange}
+          beforeUpload={handleAvatarBeforeUpload}
         >
           <Button icon={<CameraOutlined />} size="small" className="profile-avatar-btn">
             更换头像
