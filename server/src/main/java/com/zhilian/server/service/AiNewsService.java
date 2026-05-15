@@ -70,9 +70,12 @@ public class AiNewsService {
             log.info("[AiNewsService] 收到强制刷新请求，将重新拉取推荐数据");
         }
 
-        // 外部推荐总开关（兼容新旧键名）
-        String externalEnabled = settings.getOrDefault("recommend.external.enabled",
-                settings.getOrDefault("recommend.externalEnabled", "false"));
+        // 外部推荐总开关（兼容新旧键名；DB 中空字符串需视为未配置，不能挡住默认值）
+        String externalEnabled = firstNonBlankSetting(settings,
+                "recommend.external.enabled", "recommend.externalEnabled");
+        if (externalEnabled.isBlank()) {
+            externalEnabled = "false";
+        }
         if (!"true".equalsIgnoreCase(externalEnabled)) {
             log.info("[AiNewsService] 外部推荐已关闭 recommend.external.enabled={}，返回空列表（非异常）",
                     externalEnabled);
@@ -80,7 +83,11 @@ public class AiNewsService {
         }
 
         // 判断使用哪种模型
-        boolean useSearchModel = "true".equalsIgnoreCase(settings.getOrDefault("ai.search.enabled", "false"));
+        String searchEnabledRaw = firstNonBlankSetting(settings, "ai.search.enabled");
+        if (searchEnabledRaw.isBlank()) {
+            searchEnabledRaw = "false";
+        }
+        boolean useSearchModel = "true".equalsIgnoreCase(searchEnabledRaw);
 
         String apiKey;
         String baseUrl;
@@ -88,34 +95,39 @@ public class AiNewsService {
         final String modelType;
 
         if (useSearchModel) {
-            // 联网搜索模型分支
-            apiKey = settings.getOrDefault("ai.search.apiKey", "");
-            baseUrl = settings.getOrDefault("ai.search.baseUrl",
-                    settings.getOrDefault("ai.search.baseurl",
-                            "https://dashscope.aliyuncs.com/compatible-mode/v1"));
-            model = settings.getOrDefault("ai.search.model", "");
+            // 联网搜索模型分支（apiKey 可与文本 AI 共用，避免只配了一处导致永远空列表）
+            apiKey = firstNonBlankSetting(settings,
+                    "ai.search.apiKey", "ai.text.apiKey", "ai.apiKey", "ai.api.key");
+            baseUrl = firstNonBlankSetting(settings, "ai.search.baseUrl", "ai.search.baseurl");
+            if (baseUrl.isBlank()) {
+                baseUrl = "https://api.minimax.io/anthropic";
+            }
+            model = firstNonBlankSetting(settings, "ai.search.model");
             modelType = "search";
 
             if (apiKey.isBlank()) {
-                log.warn("[AiNewsService] 联网搜索已启用 (ai.search.enabled=true) 但未配置 apiKey，请在系统设置中配置 ai.search.apiKey");
+                log.warn("[AiNewsService] 联网搜索已启用 (ai.search.enabled=true) 但未配置可用 apiKey（已尝试 ai.search.apiKey / ai.text.apiKey）");
                 return Collections.emptyList();
             }
             if (model.isBlank()) {
-                model = "qwen3-search";
+                // Minimax Anthropic 默认模型；其它兼容端点保留 qwen3-search 默认
+                model = baseUrl.toLowerCase().contains("minimaxi.com")
+                        || baseUrl.toLowerCase().contains("minimax.io")
+                        ? "MiniMax-M2.7"
+                        : "qwen3-search";
             }
             log.info("[AiNewsService] 使用[联网搜索模型: {}]", model);
         } else {
             // 文本生成模型分支（兼容旧配置键）
-            apiKey = settings.getOrDefault("ai.text.apiKey",
-                    settings.getOrDefault("ai.apiKey",
-                            settings.getOrDefault("ai.api.key", "")));
-            baseUrl = settings.getOrDefault("ai.text.baseUrl",
-                    settings.getOrDefault("ai.baseUrl",
-                            settings.getOrDefault("ai.base.url",
-                                    "https://dashscope.aliyuncs.com/compatible-mode/v1")));
-            model = settings.getOrDefault("ai.text.model",
-                    settings.getOrDefault("ai.model",
-                            settings.getOrDefault("ai.modelName", "qwen3-plus")));
+            apiKey = firstNonBlankSetting(settings, "ai.text.apiKey", "ai.apiKey", "ai.api.key");
+            baseUrl = firstNonBlankSetting(settings, "ai.text.baseUrl", "ai.baseUrl", "ai.base.url");
+            if (baseUrl.isBlank()) {
+                baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+            }
+            model = firstNonBlankSetting(settings, "ai.text.model", "ai.model", "ai.modelName");
+            if (model.isBlank()) {
+                model = "qwen3-plus";
+            }
             modelType = "text";
 
             if (apiKey.isBlank()) {
@@ -135,7 +147,8 @@ public class AiNewsService {
         // 调用 AI 获取咨讯
         long fetchStart = System.currentTimeMillis();
         try {
-            int limit = parseLimit(settings.getOrDefault("recommend.limit", "8"));
+            String limitRaw = firstNonBlankSetting(settings, "recommend.limit");
+            int limit = parseLimit(limitRaw.isBlank() ? "8" : limitRaw);
             log.info("[AiNewsService] 开始获取 AI 咨讯: [{}模型: {}], baseUrl={}, limit={}, forceRefresh={}",
                     useSearchModel ? "联网搜索" : "文本生成", model, baseUrl, limit, forceRefresh);
 
@@ -169,18 +182,23 @@ public class AiNewsService {
     private List<AiNewsItemVO> fetchNewsFromAi(String apiKey, String baseUrl, String model,
                                                 int limit, String modelType) throws Exception {
         boolean isSearchMode = "search".equals(modelType);
+        // Minimax 是文本生成模型，不是真实联网搜索；URL 验证会导致所有条目被过滤，必须跳过
+        boolean isMinimax = baseUrl != null
+                && (baseUrl.toLowerCase().contains("minimaxi.com")
+                    || baseUrl.toLowerCase().contains("minimax.io"));
+        boolean doUrlValidation = isSearchMode && !isMinimax;
+
         String prompt = isSearchMode
-                ? "联网搜索并推荐 " + limit + " 条最新的 AI、科技、编程领域精选文章。\n"
-                  + "必须返回真实可访问的 URL，无效链接会导致用户投诉。\n"
-                  + "优先选择：github.com, dev.to, medium.com, react.dev, vite.dev, nextjs.org, blog.langchain.dev, huggingface.co/blog。\n"
-                  + "JSON 格式：[{\"title\":\"标题\",\"url\":\"真实URL\",\"summary\":\"摘要\",\"source\":\"来源\"}]\n"
-                  + "不要返回推测的 URL，不要返回 404 的链接。"
+                ? "推荐 " + limit + " 条近期热门的 AI、科技、编程领域文章。\n"
+                  + "优先选择有效域名：github.com, dev.to, medium.com, react.dev, vite.dev, nextjs.org, huggingface.co/blog。\n"
+                  + "只返回 JSON 数组，格式：[{\"title\":\"标题\",\"url\":\"URL\",\"summary\":\"一句话摘要\",\"source\":\"来源网站名\"}]\n"
+                  + "不要输出任何其他文字，不要有注释，只有 JSON。"
                 : "推荐 " + limit + " 条最新的 AI、科技、编程领域精选文章。\n"
                   + "优先选择有效域名：github.com, dev.to, medium.com, react.dev, vite.dev\n"
-                  + "JSON 格式：[{\"title\":\"标题\",\"url\":\"URL\",\"summary\":\"摘要\",\"source\":\"来源\"}]";
+                  + "只返回 JSON 数组，格式：[{\"title\":\"标题\",\"url\":\"URL\",\"summary\":\"摘要\",\"source\":\"来源\"}]";
 
         String content = callAiApi(apiKey, baseUrl, model, prompt, isSearchMode);
-        return parseNewsJson(content, limit, isSearchMode);
+        return parseNewsJson(content, limit, doUrlValidation);
     }
 
     private String callAiApi(String apiKey, String baseUrl, String model, String prompt,
@@ -190,23 +208,43 @@ public class AiNewsService {
         while (b.endsWith("/")) {
             b = b.substring(0, b.length() - 1);
         }
-        String endpoint = b.toLowerCase().endsWith("/chat/completions")
-                ? b
-                : b + "/chat/completions";
+
+        boolean isMinimax = b.toLowerCase().contains("minimaxi.com") || b.toLowerCase().contains("minimax.io");
+
+        String endpoint;
+        String requestBody;
+        if (isMinimax) {
+            // 官方路径为 .../anthropic/v1/messages；MiniMax OpenAPI 不包含 thinking 请求字段，乱传易触发 2013 参数错误
+            endpoint = normalizeMinimaxAnthropicEndpoint(b);
+            String escapedPrompt = objectMapper.writeValueAsString(prompt);
+            // MiniMax-M2.7 会输出较长的 thinking 块（数千 token），需充足输出配额；JSON 数组约 2-3KB，预留足够余量
+            requestBody = "{\"model\":\"" + model + "\",\"max_tokens\":128000,"
+                    + "\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":"
+                    + escapedPrompt + "}]}]}";
+        } else {
+            // OpenAI 兼容端点：/chat/completions
+            endpoint = b.toLowerCase().endsWith("/chat/completions") ? b : b + "/chat/completions";
+            String escapedPrompt = objectMapper.writeValueAsString(prompt);
+            String searchParam = enableSearch ? ",\"enable_search\":true" : "";
+            requestBody = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":"
+                    + escapedPrompt + "}],\"max_tokens\":2048" + searchParam + "}";
+        }
 
         URL url = new URL(endpoint);
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
-        conn.setRequestProperty("Authorization", "Bearer " + apiKey);
         conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        if (isMinimax) {
+            // Anthropic 风格需要 x-api-key + anthropic-version；同时设置 Authorization 以兼容部分代理
+            conn.setRequestProperty("x-api-key", apiKey);
+            conn.setRequestProperty("anthropic-version", "2023-06-01");
+            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+        } else {
+            conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+        }
         conn.setConnectTimeout(30000);
         conn.setReadTimeout(60000);
         conn.setDoOutput(true);
-
-        String escapedPrompt = objectMapper.writeValueAsString(prompt);
-        String searchParam = enableSearch ? ",\"enable_search\":true" : "";
-        String requestBody = "{\"model\":\"" + model + "\",\"messages\":[{\"role\":\"user\",\"content\":"
-                + escapedPrompt + "}],\"max_tokens\":2048" + searchParam + "}";
 
         try (OutputStream os = conn.getOutputStream()) {
             os.write(requestBody.getBytes(StandardCharsets.UTF_8));
@@ -220,25 +258,117 @@ public class AiNewsService {
         }
 
         if (statusCode >= 400) {
-            log.error("[AiNewsService] AI API 返回错误 HTTP {}: {}", statusCode, response);
+            log.error("[AiNewsService] AI API 返回错误 HTTP {}: {} (endpoint={}, model={})",
+                    statusCode, response, endpoint, model);
             throw new RuntimeException("AI API 返回错误 " + statusCode);
         }
 
         JsonNode root = objectMapper.readTree(response);
+        if (isMinimax) {
+            JsonNode baseResp = root.path("base_resp");
+            int miniStatus = baseResp.path("status_code").asInt(0);
+            if (miniStatus != 0) {
+                String miniMsg = baseResp.path("status_msg").asText("");
+                log.error("[AiNewsService] MiniMax base_resp 非成功 status_code={} status_msg={} 原始响应前500字: {}",
+                        miniStatus, miniMsg, response.length() > 500 ? response.substring(0, 500) + "…" : response);
+                throw new RuntimeException("MiniMax API 错误: " + miniMsg + " (code=" + miniStatus + ")");
+            }
+            return extractAnthropicAssistantText(root);
+        }
         return root.path("choices").path(0).path("message").path("content").asText("");
     }
 
-    private List<AiNewsItemVO> parseNewsJson(String content, int limit, boolean isSearchMode) {
+    private String firstNonBlankSetting(Map<String, String> settings, String... keys) {
+        for (String key : keys) {
+            if (key == null) {
+                continue;
+            }
+            String v = settings.get(key);
+            if (v != null && !v.isBlank()) {
+                return v.trim();
+            }
+        }
+        return "";
+    }
+
+    /** MiniMax 文档：POST /anthropic/v1/messages */
+    private String normalizeMinimaxAnthropicEndpoint(String base) {
+        String b = base == null ? "" : base.trim();
+        while (b.endsWith("/")) {
+            b = b.substring(0, b.length() - 1);
+        }
+        String lower = b.toLowerCase();
+        if (lower.endsWith("/v1/messages") || lower.endsWith("/anthropic/v1/messages")) {
+            return b;
+        }
+        if (lower.contains("/anthropic")) {
+            return b + "/v1/messages";
+        }
+        // 仅填了 host（如 https://api.minimax.io）时补上官方路径前缀
+        return b + "/anthropic/v1/messages";
+    }
+
+    /** Anthropic 风格响应：合并全部 text 块（模型可能拆成多段） */
+    private String extractAnthropicAssistantText(JsonNode root) {
+        JsonNode contentArray = root.path("content");
+        if (!contentArray.isArray() || contentArray.isEmpty()) {
+            contentArray = root.path("message").path("content");
+        }
+        if (!contentArray.isArray()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (JsonNode block : contentArray) {
+            if ("text".equals(block.path("type").asText())) {
+                String t = block.path("text").asText("");
+                if (!t.isBlank()) {
+                    if (sb.length() > 0) {
+                        sb.append('\n');
+                    }
+                    sb.append(t);
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    /** 去掉 ```json ... ``` 等围栏，便于定位 JSON 数组 */
+    private String stripMarkdownCodeFence(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String s = raw.trim();
+        int fence = s.indexOf("```");
+        if (fence < 0) {
+            return s;
+        }
+        int lineEnd = s.indexOf('\n', fence);
+        int innerStart = (lineEnd < 0) ? fence + 3 : lineEnd + 1;
+        int close = s.indexOf("```", innerStart);
+        if (close > innerStart) {
+            return s.substring(innerStart, close).trim();
+        }
+        return s;
+    }
+
+    private List<AiNewsItemVO> parseNewsJson(String content, int limit, boolean doUrlValidation) {
         List<AiNewsItemVO> result = new ArrayList<>();
         try {
-            String json = content.trim();
+            String json = stripMarkdownCodeFence(content == null ? "" : content.trim());
+            if (json.isEmpty()) {
+                log.warn("[AiNewsService] AI 响应为空");
+                return result;
+            }
+
+            // 优先定位 JSON 数组范围
             int start = json.indexOf('[');
             int end = json.lastIndexOf(']');
             if (start >= 0 && end > start) {
                 json = json.substring(start, end + 1);
             } else {
-                log.warn("[AiNewsService] AI 响应中未找到 JSON 数组，原始内容: {}", content.substring(0, Math.min(200, content.length())));
-                return result;
+                // 截断场景：找不到完整数组时，尝试用正则逐个提取 {..."title":...} 对象
+                log.warn("[AiNewsService] 未找到完整 JSON 数组（可能被截断），尝试逐个提取对象: {}", json.substring(0, Math.min(300, json.length())));
+                return extractItemsByRegex(json, limit);
             }
 
             JsonNode array = objectMapper.readTree(json);
@@ -256,20 +386,49 @@ public class AiNewsService {
 
                 String id = "news_" + Math.abs(url.hashCode());
                 AiNewsItemVO vo = new AiNewsItemVO(id, title, url, summary, source.isBlank() ? null : source);
-                vo.setModelSource(isSearchMode ? "search" : "text");
+                vo.setModelSource("ai");
                 tempResult.add(vo);
             }
 
-            if (isSearchMode && !tempResult.isEmpty()) {
+            if (doUrlValidation && !tempResult.isEmpty()) {
                 log.info("[AiNewsService] 开始验证 {} 条链接有效性...", tempResult.size());
                 List<AiNewsItemVO> validatedResult = validateAndFilterUrls(tempResult);
                 log.info("[AiNewsService] 链接验证完成: 有效 {} 条 / 原始 {} 条", validatedResult.size(), tempResult.size());
                 return validatedResult;
             }
 
+            log.info("[AiNewsService] 解析完成，共 {} 条推荐（跳过 URL 验证={}）", tempResult.size(), !doUrlValidation);
             return tempResult;
         } catch (Exception e) {
             log.error("[AiNewsService] 解析 AI 咨讯 JSON 失败: {}", e.getMessage(), e);
+        }
+        return result;
+    }
+
+    /** 截断 JSON 的兜底提取：用正则逐个匹配 {..."title":..."url":...} 对象 */
+    private List<AiNewsItemVO> extractItemsByRegex(String content, int limit) {
+        List<AiNewsItemVO> result = new ArrayList<>();
+        try {
+            // 匹配 JSON 对象（可能截断，对象内部字段完整即可）
+            java.util.regex.Pattern objPat = java.util.regex.Pattern.compile(
+                    "\\{\\s*\"title\"\\s*:\\s*\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"\\s*,\\s*\"url\"\\s*:\\s*\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"\\s*,\\s*\"summary\"\\s*:\\s*\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"\\s*,\\s*\"source\"\\s*:\\s*\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"\\s*\\}",
+                    java.util.regex.Pattern.MULTILINE);
+            java.util.regex.Matcher m = objPat.matcher(content);
+            while (m.find() && result.size() < limit) {
+                String title = m.group(1).replaceAll("\\\\(.)", "$1");
+                String url = m.group(2).replaceAll("\\\\(.)", "$1");
+                String summary = m.group(3).replaceAll("\\\\(.)", "$1");
+                String source = m.group(4).replaceAll("\\\\(.)", "$1");
+                if (!title.isBlank() && !url.isBlank()) {
+                    String id = "news_" + Math.abs(url.hashCode());
+                    AiNewsItemVO vo = new AiNewsItemVO(id, title, url, summary, source.isBlank() ? null : source);
+                    vo.setModelSource("ai");
+                    result.add(vo);
+                }
+            }
+            log.info("[AiNewsService] 正则提取完成，共 {} 条（原始内容长度={}）", result.size(), content.length());
+        } catch (Exception e) {
+            log.error("[AiNewsService] 正则提取失败: {}", e.getMessage());
         }
         return result;
     }
