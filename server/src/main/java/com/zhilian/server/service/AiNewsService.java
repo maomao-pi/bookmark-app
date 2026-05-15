@@ -99,24 +99,44 @@ public class AiNewsService {
             apiKey = firstNonBlankSetting(settings,
                     "ai.search.apiKey", "ai.text.apiKey", "ai.apiKey", "ai.api.key");
             baseUrl = firstNonBlankSetting(settings, "ai.search.baseUrl", "ai.search.baseurl");
-            if (baseUrl.isBlank()) {
-                baseUrl = "https://api.minimax.io/anthropic";
-            }
             model = firstNonBlankSetting(settings, "ai.search.model");
-            modelType = "search";
+            String provider = firstNonBlankSetting(settings, "ai.search.provider");
 
-            if (apiKey.isBlank()) {
-                log.warn("[AiNewsService] 联网搜索已启用 (ai.search.enabled=true) 但未配置可用 apiKey（已尝试 ai.search.apiKey / ai.text.apiKey）");
-                return Collections.emptyList();
+            // 检测是否为 Tavily 专用搜索 API
+            boolean isTavily = "tavily".equalsIgnoreCase(provider)
+                    || (baseUrl != null && baseUrl.toLowerCase().contains("tavily"));
+            if (isTavily) {
+                if (baseUrl.isBlank()) {
+                    baseUrl = "https://api.tavily.com";
+                }
+                if (model.isBlank()) {
+                    model = "tavily";
+                }
+                modelType = "tavily";
+                if (apiKey.isBlank()) {
+                    log.warn("[AiNewsService] Tavily 搜索已启用但未配置 apiKey");
+                    return Collections.emptyList();
+                }
+                log.info("[AiNewsService] 使用[Tavily 联网搜索]");
+            } else {
+                // AI 联网搜索模型（MiniMax / 百炼等）
+                if (baseUrl.isBlank()) {
+                    baseUrl = "https://api.minimax.io/anthropic";
+                }
+                if (model.isBlank()) {
+                    // Minimax Anthropic 默认模型；其它兼容端点保留 qwen3-search 默认
+                    model = baseUrl.toLowerCase().contains("minimaxi.com")
+                            || baseUrl.toLowerCase().contains("minimax.io")
+                            ? "MiniMax-M2.7"
+                            : "qwen3-search";
+                }
+                modelType = "search";
+                if (apiKey.isBlank()) {
+                    log.warn("[AiNewsService] 联网搜索已启用 (ai.search.enabled=true) 但未配置可用 apiKey（已尝试 ai.search.apiKey / ai.text.apiKey）");
+                    return Collections.emptyList();
+                }
+                log.info("[AiNewsService] 使用[联网搜索模型: {}]", model);
             }
-            if (model.isBlank()) {
-                // Minimax Anthropic 默认模型；其它兼容端点保留 qwen3-search 默认
-                model = baseUrl.toLowerCase().contains("minimaxi.com")
-                        || baseUrl.toLowerCase().contains("minimax.io")
-                        ? "MiniMax-M2.7"
-                        : "qwen3-search";
-            }
-            log.info("[AiNewsService] 使用[联网搜索模型: {}]", model);
         } else {
             // 文本生成模型分支（兼容旧配置键）
             apiKey = firstNonBlankSetting(settings, "ai.text.apiKey", "ai.apiKey", "ai.api.key");
@@ -152,7 +172,12 @@ public class AiNewsService {
             log.info("[AiNewsService] 开始获取 AI 咨讯: [{}模型: {}], baseUrl={}, limit={}, forceRefresh={}",
                     useSearchModel ? "联网搜索" : "文本生成", model, baseUrl, limit, forceRefresh);
 
-            List<AiNewsItemVO> result = fetchNewsFromAi(apiKey, baseUrl, model, limit, modelType);
+            List<AiNewsItemVO> result;
+            if ("tavily".equals(modelType)) {
+                result = fetchNewsFromTavily(apiKey, baseUrl, limit);
+            } else {
+                result = fetchNewsFromAi(apiKey, baseUrl, model, limit, modelType);
+            }
 
             // 更新缓存
             cache = result;
@@ -177,6 +202,75 @@ public class AiNewsService {
         cache = null;
         cacheExpireAt = 0;
         log.info("[AiNewsService] 推荐缓存已清除");
+    }
+
+    /**
+     * Tavily 专用联网搜索。
+     * API: POST https://api.tavily.com/search
+     * 返回结构: { results: [{url, title, content, score}], answer, ... }
+     * 无需 URL 验证，Tavily 返回的都是真实可访问的链接。
+     */
+    private List<AiNewsItemVO> fetchNewsFromTavily(String apiKey, String baseUrl, int limit) throws Exception {
+        String b = baseUrl == null ? "" : baseUrl.trim();
+        while (b.endsWith("/")) {
+            b = b.substring(0, b.length() - 1);
+        }
+        String endpoint = b + "/search";
+
+        String prompt = "latest AI, tech and programming news or articles";
+        String requestBody = "{\"query\":\"" + prompt.replace("\"", "\\\"") + "\",\"search_depth\":\"basic\",\"max_results\":" + limit + ",\"include_answer\":false,\"include_raw_content\":false}";
+
+        URL url = new URL(endpoint);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Authorization", "Bearer " + apiKey);
+        conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        conn.setConnectTimeout(30000);
+        conn.setReadTimeout(60000);
+        conn.setDoOutput(true);
+
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(requestBody.getBytes(StandardCharsets.UTF_8));
+        }
+
+        int statusCode = conn.getResponseCode();
+        java.io.InputStream is = statusCode >= 400 ? conn.getErrorStream() : conn.getInputStream();
+        String response;
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+            response = br.lines().collect(Collectors.joining("\n"));
+        }
+
+        if (statusCode >= 400) {
+            log.error("[AiNewsService] Tavily API 返回错误 HTTP {}: {}", statusCode, response);
+            throw new RuntimeException("Tavily API 错误 " + statusCode);
+        }
+
+        JsonNode root = objectMapper.readTree(response);
+        JsonNode results = root.path("results");
+        List<AiNewsItemVO> list = new ArrayList<>();
+        if (results.isArray()) {
+            for (int i = 0; i < results.size() && list.size() < limit; i++) {
+                JsonNode item = results.get(i);
+                String title = item.path("title").asText("").trim();
+                String itemUrl = item.path("url").asText("").trim();
+                String content = item.path("content").asText("").trim();
+                if (title.isBlank() || itemUrl.isBlank()) continue;
+
+                // 从 URL 提取 source
+                String source = "";
+                try {
+                    URL srcUrl = new URL(itemUrl);
+                    source = srcUrl.getHost().replace("www.", "");
+                } catch (Exception ignored) {}
+
+                String id = "news_" + Math.abs(itemUrl.hashCode());
+                AiNewsItemVO vo = new AiNewsItemVO(id, title, itemUrl, content, source);
+                vo.setModelSource("tavily");
+                list.add(vo);
+            }
+        }
+        log.info("[AiNewsService] Tavily 搜索完成，共 {} 条结果", list.size());
+        return list;
     }
 
     private List<AiNewsItemVO> fetchNewsFromAi(String apiKey, String baseUrl, String model,

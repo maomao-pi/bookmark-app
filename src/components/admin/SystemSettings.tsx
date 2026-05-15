@@ -13,6 +13,7 @@ export function SystemSettings({ api }: SystemSettingsProps) {
   const [loading, setLoading] = useState(false);
   const [testingAi, setTestingAi] = useState(false);
   const [testingSearch, setTestingSearch] = useState(false);
+  const [provider, setProvider] = useState<string>('');
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -36,9 +37,10 @@ export function SystemSettings({ api }: SystemSettingsProps) {
 
         // 联网搜索模型配置（默认 Minimax M2.7 / Anthropic 兼容）
         'ai.search.enabled': settings['ai.search.enabled'] === 'true',
+        'ai.search.provider': settings['ai.search.provider'] || '',
         'ai.search.apiKey': settings['ai.search.apiKey'] || '',
-        'ai.search.baseUrl': settings['ai.search.baseUrl'] || 'https://api.minimaxi.com/anthropic',
-        'ai.search.model': settings['ai.search.model'] || 'MiniMax-M2.7',
+        'ai.search.baseUrl': settings['ai.search.baseUrl'] || '',
+        'ai.search.model': settings['ai.search.model'] || '',
 
         // 图片生成模型配置（Minimax）
         'ai.image.enabled': settings['ai.image.enabled'] === 'true',
@@ -54,6 +56,7 @@ export function SystemSettings({ api }: SystemSettingsProps) {
         'ai.organizeEnabled': settings['ai.organizeEnabled'] !== 'false',
         'ai.organizeFrequencyDays': parseInt(settings['ai.organizeFrequencyDays'] || '7', 10),
       });
+      setProvider(settings['ai.search.provider'] || '');
     } catch (error) {
       message.error('加载设置失败');
     } finally {
@@ -81,6 +84,7 @@ export function SystemSettings({ api }: SystemSettingsProps) {
 
         // 联网搜索模型配置
         'ai.search.enabled': toBoolString(values['ai.search.enabled']),
+        'ai.search.provider': values['ai.search.provider'] || '',
         'ai.search.apiKey': values['ai.search.apiKey'] || '',
         'ai.search.baseUrl': values['ai.search.baseUrl'] || '',
         'ai.search.model': values['ai.search.model'] || '',
@@ -219,10 +223,10 @@ export function SystemSettings({ api }: SystemSettingsProps) {
               children: (
                 <Card bordered={false}>
                   <Alert
-                    message="联网搜索模型用途"
+                    message="联网搜索用途"
                     description={<>
-                      用于「AI 为你推荐」功能。默认走 <b>Minimax M2.7</b>（Anthropic 兼容协议，端点 <code>/v1/messages</code>）。
-                      也可改回 DashScope <code>qwen3-search</code> 等任意 OpenAI 兼容模型，地址含 <code>minimaxi.com</code> 时自动切换协议。
+                      用于「AI 为你推荐」功能。<b>推荐使用 Tavily</b>（专业联网搜索 API，返回真实可访问链接）。
+                      也可使用 <b>Minimax M2.7</b> 或 <b>DashScope qwen3-search</b> 等 AI 模型（通过 AI 推断链接，可能不准确）。
                     </>}
                     type="info"
                     showIcon
@@ -231,22 +235,33 @@ export function SystemSettings({ api }: SystemSettingsProps) {
                   <Form.Item name="ai.search.enabled" label="启用联网搜索 AI" valuePropName="checked">
                     <Switch />
                   </Form.Item>
+                  <Form.Item name="ai.search.provider" label="搜索提供商">
+                    <Select
+                      allowClear
+                      placeholder="自动检测（默认 Tavily）"
+                      options={[
+                        { label: 'Tavily（推荐）', value: 'tavily' },
+                        { label: 'MiniMax M2.7', value: 'minimax' },
+                        { label: '百炼 qwen3-search', value: 'dashscope' },
+                      ]}
+                      onChange={(val) => setProvider(val || '')}
+                    />
+                  </Form.Item>
                   <Form.Item name="ai.search.apiKey" label="API Key">
-                    <Input.Password placeholder="请输入 Minimax Token Plan / 按量计费 API Key" />
+                    <Input.Password placeholder={provider === 'tavily' ? "请输入 Tavily API Key（tvly-...）" : "请输入 API Key"} />
                   </Form.Item>
                   <Form.Item
                     name="ai.search.baseUrl"
                     label="API 地址"
-                    extra="Minimax：https://api.minimaxi.com/anthropic ；DashScope：https://dashscope.aliyuncs.com/compatible-mode/v1"
+                    extra={provider === 'tavily' ? "https://api.tavily.com" : "Minimax: https://api.minimaxi.com/anthropic | 百炼: https://dashscope.aliyuncs.com/compatible-mode/v1"}
                   >
-                    <Input placeholder="https://api.minimaxi.com/anthropic" />
+                    <Input placeholder={provider === 'tavily' ? "https://api.tavily.com" : "https://api.minimaxi.com/anthropic"} />
                   </Form.Item>
                   <Form.Item
                     name="ai.search.model"
-                    label="模型名称"
-                    extra="Minimax 推荐 MiniMax-M2.7；DashScope 联网搜索可用 qwen3-search"
+                    label="模型名称（Tavily 可不填）"
                   >
-                    <Input placeholder="MiniMax-M2.7" />
+                    <Input placeholder={provider === 'tavily' ? "（可选）" : "MiniMax-M2.7 / qwen3-search"} />
                   </Form.Item>
                   <Button
                     icon={<ExperimentOutlined />}
