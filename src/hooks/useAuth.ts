@@ -8,7 +8,47 @@ export interface UserSession {
   email: string;
   avatar?: string | null;
   nickname?: string | null;
+  role?: string;
+  permissions?: string | null;
   createdAt: string;
+}
+
+function parseStoredUser(raw: string | null): UserSession | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as UserSession;
+  } catch {
+    return null;
+  }
+}
+
+function isAuthError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /未登录|401|过期|无效|Unauthorized|用户名或密码/i.test(msg);
+}
+
+function buildSessionFromProfile(
+  profile: {
+    id: number;
+    username: string;
+    email: string;
+    avatar?: string;
+    nickname?: string;
+    role?: string;
+    permissions?: string;
+  },
+  base?: UserSession | null,
+): UserSession {
+  return {
+    id: String(profile.id),
+    username: profile.username,
+    email: profile.email ?? base?.email ?? '',
+    avatar: profile.avatar ?? base?.avatar ?? null,
+    nickname: profile.nickname ?? base?.nickname ?? null,
+    role: profile.role ?? base?.role,
+    permissions: profile.permissions ?? base?.permissions ?? null,
+    createdAt: base?.createdAt ?? new Date().toISOString(),
+  };
 }
 
 export function useAuth() {
@@ -19,30 +59,45 @@ export function useAuth() {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('userToken');
-      const savedUser = localStorage.getItem('userInfo');
-      
-      if (token && savedUser) {
-        try {
-          const profile = await userApi.getProfile();
-          const user = JSON.parse(savedUser);
-          setCurrentUser({
-            ...user,
-            avatar: profile.avatar,
-            nickname: profile.nickname ?? user.nickname ?? null,
-            email: profile.email ?? user.email,
-          });
-          setIsOnline(true);
-        } catch (err) {
-          console.error('Failed to verify token:', err);
+      const cached = parseStoredUser(localStorage.getItem('userInfo'));
+
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      // 先用本地缓存恢复登录态，避免 profile 请求失败时 UI 闪退为未登录
+      if (cached) {
+        setCurrentUser(cached);
+        setIsOnline(true);
+      }
+
+      try {
+        const profile = await userApi.getProfile();
+        const session = buildSessionFromProfile(profile, cached);
+        localStorage.setItem('userInfo', JSON.stringify(session));
+        setCurrentUser(session);
+        setIsOnline(true);
+      } catch (err) {
+        logger.error('useAuth.checkAuth', err);
+        if (isAuthError(err)) {
           localStorage.removeItem('userToken');
           localStorage.removeItem('userInfo');
+          setCurrentUser(null);
           setIsOnline(false);
         }
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     checkAuth();
+  }, []);
+
+  const persistSession = useCallback((session: UserSession) => {
+    localStorage.setItem('userInfo', JSON.stringify(session));
+    setCurrentUser(session);
+    setIsOnline(true);
   }, []);
 
   const register = useCallback(async (username: string, email: string, password: string, nickname: string, phone: string): Promise<{ success: boolean; message: string }> => {
@@ -67,17 +122,17 @@ export function useAuth() {
         email: result.user.email,
         avatar: result.user.avatar,
         nickname: result.user.nickname ?? nickname,
+        role: result.user.role,
+        permissions: result.user.permissions ?? null,
         createdAt: new Date().toISOString(),
       };
-      localStorage.setItem('userInfo', JSON.stringify(session));
-      setCurrentUser(session);
-      setIsOnline(true);
+      persistSession(session);
       window.location.reload();
       return { success: true, message: '注册成功' };
     } catch (err) {
       return { success: false, message: err instanceof Error ? err.message : '注册失败' };
     }
-  }, []);
+  }, [persistSession]);
 
   const login = useCallback(async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password) {
@@ -92,17 +147,17 @@ export function useAuth() {
         email: result.user.email,
         avatar: result.user.avatar,
         nickname: result.user.nickname ?? null,
+        role: result.user.role,
+        permissions: result.user.permissions ?? null,
         createdAt: new Date().toISOString(),
       };
-      localStorage.setItem('userInfo', JSON.stringify(session));
-      setCurrentUser(session);
-      setIsOnline(true);
+      persistSession(session);
       window.location.reload();
       return { success: true, message: '登录成功' };
     } catch (err) {
       return { success: false, message: err instanceof Error ? err.message : '登录失败，请检查用户名和密码' };
     }
-  }, []);
+  }, [persistSession]);
 
   const logout = useCallback(() => {
     userApi.logout();
@@ -127,7 +182,6 @@ export function useAuth() {
     }
 
     try {
-      // 调用后端 API 更新 - 只传递支持的字段
       await userApi.updateExtendedProfile({
         nickname: updates.username,
       });

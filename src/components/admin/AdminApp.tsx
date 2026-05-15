@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ConfigProvider, Modal } from 'antd';
+import { ConfigProvider, Modal, message } from 'antd';
 import { AdminLayout } from './AdminLayout';
 import { AdminLogin } from './AdminLogin';
 import { Dashboard } from './Dashboard';
@@ -49,6 +49,9 @@ export function AdminApp() {
   const [api, setApi] = useState<AdminApi | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
+  const [isUserAdmin, setIsUserAdmin] = useState(false);
+  const [userPermissions, setUserPermissions] = useState<string | null>(null);
+  const [loginHint, setLoginHint] = useState<string | undefined>();
 
   const {
     unreadCount,
@@ -109,7 +112,7 @@ export function AdminApp() {
   useEffect(() => {
     const savedToken = sessionStorage.getItem(ADMIN_STORAGE_KEY);
     const savedAdminInfo = sessionStorage.getItem(ADMIN_INFO_KEY);
-    
+
     if (savedToken && savedAdminInfo) {
       setToken(savedToken);
       const parsed = JSON.parse(savedAdminInfo) as AdminLoginResponse;
@@ -119,8 +122,71 @@ export function AdminApp() {
       }
       setAdminInfo(parsed);
       setIsLoggedIn(true);
+    } else {
+      // 检查是否有用户token通过URL参数传入（用户管理员免登录访问）
+      const params = new URLSearchParams(window.location.search);
+      const userToken = params.get('userToken');
+      if (userToken) {
+        validateUserAdmin(userToken);
+      }
     }
   }, []);
+
+  // 验证用户管理员访问
+  const validateUserAdmin = async (userToken: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/user/admin-validate`, {
+        headers: {
+          'Authorization': `Bearer ${userToken}`,
+        },
+      });
+      const json = await response.json();
+      if (json.code === 200 && json.data) {
+        const userData = json.data;
+        const adminLoginResponse: AdminLoginResponse = {
+          id: userData.id,
+          token: userToken,
+          username: userData.username,
+          avatar: userData.avatar,
+          role: 'admin', // 用户管理员在admin系统中表现为admin角色
+          permissions: userData.permissions ? parseUserPermissions(userData.permissions) : [],
+        };
+        setToken(userToken);
+        setAdminInfo(adminLoginResponse);
+        setPermissions(adminLoginResponse.permissions || []);
+        setUserPermissions(userData.permissions);
+        setIsUserAdmin(true);
+        setIsLoggedIn(true);
+
+        // 不需要sessionStorage，因为是临时访问
+      } else {
+        const hint = json.message || '用户端免登失败，请使用下方系统管理员账号登录';
+        setLoginHint(hint);
+        message.warning(hint);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    } catch (error) {
+      setLoginHint('验证失败，请使用系统管理员账号登录');
+      message.error('验证管理权限失败，请使用系统管理员账号登录');
+      window.history.replaceState({}, '', window.location.pathname);
+      console.error('User admin validation error:', error);
+    }
+  };
+
+  // 解析用户权限（从JSON字符串转换为菜单权限数组）
+  const parseUserPermissions = (permissionsJson: string): string[] => {
+    try {
+      const perms = JSON.parse(permissionsJson);
+      if (perms && perms.menus) {
+        return Object.entries(perms.menus)
+          .filter(([, value]) => value === true)
+          .map(([key]) => key);
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -154,6 +220,9 @@ export function AdminApp() {
   }, [token]);
 
   const handleLoginSuccess = (newToken: string, adminData: { username: string; avatar?: string; role: string; permissions?: string[] }) => {
+    setLoginHint(undefined);
+    setIsUserAdmin(false);
+    setUserPermissions(null);
     const adminId = decodeAdminIdFromToken(newToken);
     const adminLoginResponse: AdminLoginResponse = {
       id: adminId,
@@ -181,6 +250,11 @@ export function AdminApp() {
     sessionStorage.removeItem(ADMIN_STORAGE_KEY);
     sessionStorage.removeItem(ADMIN_INFO_KEY);
     setApi(null);
+
+    // 如果是用户管理员访问，关闭admin标签页
+    if (isUserAdmin) {
+      window.close();
+    }
   };
 
   const handleCollapse = (collapsed: boolean) => {
@@ -240,7 +314,11 @@ export function AdminApp() {
   if (!isLoggedIn) {
     return (
       <ConfigProvider>
-        <AdminLogin baseUrl={API_BASE_URL} onLoginSuccess={handleLoginSuccess} />
+        <AdminLogin
+          baseUrl={API_BASE_URL}
+          onLoginSuccess={handleLoginSuccess}
+          hintMessage={loginHint}
+        />
       </ConfigProvider>
     );
   }
@@ -256,6 +334,8 @@ export function AdminApp() {
           onCollapse={handleCollapse}
           permissions={permissions}
           isSuperAdmin={adminInfo?.role === 'super_admin'}
+          isUserAdmin={isUserAdmin}
+          userPermissions={userPermissions || undefined}
           notifications={notifications}
           unreadCount={unreadCount}
           notificationLoading={notificationLoading}

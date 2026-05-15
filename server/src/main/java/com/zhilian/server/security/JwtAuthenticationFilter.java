@@ -42,11 +42,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String role = jwtUtil.getRoleFromToken(token);
             System.out.println("JWT Filter - Role: " + role);
             
-            if ("admin".equals(role) || "super_admin".equals(role)) {
-                Long adminId = jwtUtil.getAdminIdFromToken(token);
-                Admin admin = adminMapper.selectById(adminId);
+            if ("super_admin".equals(role) || "admin".equals(role)) {
+                Long subjectId = jwtUtil.getAdminIdFromToken(token);
+                Admin admin = adminMapper.selectById(subjectId);
                 if (admin != null && "active".equals(admin.getStatus())) {
-                    UsernamePasswordAuthenticationToken authentication = 
+                    UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     admin,
                                     null,
@@ -54,24 +54,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             );
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                     System.out.println("JWT Filter - Admin authenticated");
+                } else if ("admin".equals(role)) {
+                    // 兼容旧 token：app_user 的 role 曾为 admin，被误判为后台管理员
+                    authenticateAppUser(subjectId);
                 }
             } else if ("user".equals(role)) {
                 Long userId = jwtUtil.getAdminIdFromToken(token);
-                System.out.println("JWT Filter - UserId: " + userId);
-                if (userId != null) {
-                    UsernamePasswordAuthenticationToken authentication = 
-                            new UsernamePasswordAuthenticationToken(
-                                    userId.toString(),
-                                    null,
-                                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    System.out.println("JWT Filter - User authenticated");
-                }
+                authenticateAppUser(userId);
             }
         }
         
         filterChain.doFilter(request, response);
+    }
+
+    private void authenticateAppUser(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null || !"active".equals(user.getStatus())) {
+            System.out.println("JWT Filter - App user not found or disabled: " + userId);
+            return;
+        }
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                        userId.toString(),
+                        null,
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
+                );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        System.out.println("JWT Filter - User authenticated, userId=" + userId);
     }
     
     private String getTokenFromRequest(HttpServletRequest request) {

@@ -42,12 +42,90 @@ export interface AppUser {
   phone?: string;
   password?: string;
   avatar?: string;
-  role?: string;
+  role: 'admin' | 'user';
   status: 'active' | 'disabled';
+  permissions?: string;
   createdAt?: string;
   updatedAt?: string;
   lastLoginAt?: string;
   bookmarkCount?: number;
+}
+
+// 用户权限结构 - 菜单级别和标签页级别
+export interface UserMenuPermissions {
+  dashboard?: boolean;
+  users?: boolean;
+  bookmarks?: boolean;
+  discover?: boolean;
+  categories?: boolean;
+  articles?: boolean;
+  logs?: boolean;
+  settings?: boolean;
+  admins?: boolean;
+}
+
+export interface UserTabPermissions {
+  bookmarks?: {
+    list?: boolean;
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+    batchDelete?: boolean;
+  };
+  categories?: {
+    list?: boolean;
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+    removeDuplicates?: boolean;
+  };
+  articles?: {
+    list?: boolean;
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+  };
+  discover?: {
+    list?: boolean;
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+    batchDelete?: boolean;
+    batchStatus?: boolean;
+    removeDuplicates?: boolean;
+  };
+  logs?: {
+    list?: boolean;
+    revert?: boolean;
+  };
+  users?: {
+    list?: boolean;
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+    view?: boolean;
+    resetPassword?: boolean;
+    changeRole?: boolean;
+    configurePermissions?: boolean;
+  };
+  settings?: {
+    view?: boolean;
+    edit?: boolean;
+    testAi?: boolean;
+  };
+  admins?: {
+    list?: boolean;
+    add?: boolean;
+    edit?: boolean;
+    delete?: boolean;
+    resetPassword?: boolean;
+    configurePermissions?: boolean;
+  };
+}
+
+export interface UserPermissions {
+  menus?: UserMenuPermissions;
+  tabs?: UserTabPermissions;
 }
 
 export interface BookmarkItem {

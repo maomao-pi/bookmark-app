@@ -1,6 +1,7 @@
 package com.zhilian.server.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.zhilian.server.common.ErrorCode;
 import com.zhilian.server.dto.AiNewsItemVO;
 import com.zhilian.server.dto.ApiResponse;
 import com.zhilian.server.dto.BookmarkAnalysisResult;
@@ -29,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -76,7 +78,7 @@ public class UserApiController {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         System.out.println("Profile - Auth: " + (authentication != null ? authentication.getPrincipal() : "null"));
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ApiResponse.error("未登录");
+            return ApiResponse.error(ErrorCode.UNAUTHORIZED, "未登录");
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof String) {
@@ -91,7 +93,47 @@ public class UserApiController {
             user.setPassword(null);
             return ApiResponse.success(user);
         }
-        return ApiResponse.error("未登录");
+        return ApiResponse.error(ErrorCode.UNAUTHORIZED, "未登录");
+    }
+
+    /**
+     * 验证用户是否有管理员权限（用于管理后台免登录访问）
+     */
+    @GetMapping("/admin-validate")
+    public ApiResponse<Map<String, Object>> validateAdminAccess() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ApiResponse.error("未登录");
+        }
+        Object principal = authentication.getPrincipal();
+        Long userId;
+        if (principal instanceof String) {
+            userId = Long.parseLong((String) principal);
+        } else if (principal instanceof User) {
+            userId = ((User) principal).getId();
+        } else {
+            return ApiResponse.error("无法识别用户身份");
+        }
+
+        User user = userService.getUserById(userId);
+        if (user == null) {
+            return ApiResponse.error("用户不存在");
+        }
+
+        if (!userService.canAccessAdminPanel(user)) {
+            return ApiResponse.error(ErrorCode.FORBIDDEN, "无管理权限，请联系管理员分配角色或菜单权限");
+        }
+
+        // 返回管理员信息和权限
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", user.getId());
+        result.put("username", user.getUsername());
+        result.put("avatar", user.getAvatar());
+        result.put("role", user.getRole());
+        result.put("permissions", user.getPermissions());
+        result.put("status", user.getStatus());
+
+        return ApiResponse.success(result);
     }
     
     @PutMapping("/profile")

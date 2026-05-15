@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ConfigProvider, theme as antTheme, Layout, Input, Button, Empty, message, Dropdown, Space, Menu, Tooltip, type MenuProps } from 'antd';
 import { SunOutlined, MoonOutlined, PlusOutlined, FolderOutlined, SortAscendingOutlined, LogoutOutlined, UserOutlined, BookOutlined, HomeOutlined, CompassOutlined, SettingOutlined, SettingFilled, TeamOutlined, ThunderboltOutlined, AppstoreOutlined, ReadOutlined, TagsOutlined, BarChartOutlined, RobotOutlined, GlobalOutlined, LinkOutlined, FileTextOutlined } from '@ant-design/icons';
 import { useAppData } from './hooks/useAppData';
@@ -17,6 +17,7 @@ import { AiNewsSection } from './components/AiNewsSection';
 import type { Bookmark, BookmarkFormData, Article, ArticleFormData, Category } from './types';
 import { UserAvatar } from './components/UserAvatar';
 import { getUserDisplayName, getUserSubtitle } from './utils/userAvatar';
+import { canAccessAdminBackend, openAdminPanelAsUser, openSystemAdminLogin } from './utils/adminAccess';
 import './App.css';
 
 const { Header, Content } = Layout;
@@ -57,12 +58,18 @@ function App() {
   } = useAppData();
 
   const { toggleTheme, isDark, allowUserSwitch } = useTheme();
-  const { currentUser, isAuthenticated, logout, patchSession } = useAuth();
+  const { currentUser, isAuthenticated, isLoading: authLoading, logout, patchSession } = useAuth();
   
   const [currentPage, setCurrentPage] = useState<PageType>(() => {
     const token = localStorage.getItem('userToken');
     return token ? 'home' : 'about';
   });
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && currentPage === 'about') {
+      setCurrentPage('home');
+    }
+  }, [authLoading, isAuthenticated, currentPage]);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const openLoginPage = (mode: 'login' | 'register' = 'login') => {
@@ -308,7 +315,14 @@ function App() {
     } else if (key === 'stats') {
       setCurrentPage('home');
     } else if (key === 'settings') {
-      message.info('请前往管理后台配置系统设置');
+      if (isAuthenticated && canAccessAdminBackend(currentUser)) {
+        openAdminPanelAsUser();
+      } else if (!isAuthenticated) {
+        openSystemAdminLogin();
+      } else {
+        message.warning('当前账号暂无管理权限，可使用系统管理员账号登录');
+        openSystemAdminLogin();
+      }
     }
   };
 
@@ -837,11 +851,17 @@ function App() {
                   )}
                 </Space>
               )}
-              <Tooltip title="管理后台">
+              <Tooltip title="管理后台（系统管理员可直接登录）">
                 <Button 
                   type="text" 
                   icon={<SettingFilled />} 
-                  onClick={() => window.open('/admin.html', '_blank')}
+                  onClick={() => {
+                    if (isAuthenticated && canAccessAdminBackend(currentUser)) {
+                      openAdminPanelAsUser();
+                    } else {
+                      openSystemAdminLogin();
+                    }
+                  }}
                   className="admin-btn"
                 />
               </Tooltip>

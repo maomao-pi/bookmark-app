@@ -12,9 +12,9 @@ import type {
 } from '../types/admin';
 
 const MOCK_USERS: AppUser[] = [
-  { id: 1, username: '张三', email: 'zhangsan@example.com', status: 'active', bookmarkCount: 15, createdAt: '2024-01-15T10:00:00' },
-  { id: 2, username: '李四', email: 'lisi@example.com', status: 'active', bookmarkCount: 8, createdAt: '2024-02-20T14:30:00' },
-  { id: 3, username: '王五', email: 'wangwu@example.com', status: 'disabled', bookmarkCount: 23, createdAt: '2024-03-10T09:15:00' },
+  { id: 1, username: '张三', email: 'zhangsan@example.com', status: 'active', role: 'user', bookmarkCount: 15, createdAt: '2024-01-15T10:00:00' },
+  { id: 2, username: '李四', email: 'lisi@example.com', status: 'active', role: 'admin', bookmarkCount: 8, createdAt: '2024-02-20T14:30:00' },
+  { id: 3, username: '王五', email: 'wangwu@example.com', status: 'disabled', role: 'user', bookmarkCount: 23, createdAt: '2024-03-10T09:15:00' },
 ];
 
 const MOCK_BOOKMARKS: BookmarkItem[] = [

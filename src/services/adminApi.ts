@@ -135,6 +135,14 @@ export class AdminApi {
     return this.request<void>('PUT', `/api/admin/users/${id}/password`, { password: newPassword });
   }
 
+  updateUserRole(id: number, role: 'admin' | 'user') {
+    return this.request<AppUser>('PUT', `/api/admin/users/${id}/role`, { role });
+  }
+
+  updateUserPermissions(id: number, permissions: string) {
+    return this.request<AppUser>('PUT', `/api/admin/users/${id}/permissions`, { permissions });
+  }
+
   getBookmarks(params: {
     pageNum: number;
     pageSize: number;

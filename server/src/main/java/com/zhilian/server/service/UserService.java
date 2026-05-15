@@ -13,6 +13,8 @@ import com.zhilian.server.mapper.ArticleMapper;
 import com.zhilian.server.mapper.BookmarkMapper;
 import com.zhilian.server.mapper.UserMapper;
 import com.zhilian.server.security.JwtUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,8 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private static final Set<String> ALLOWED_USER_STATUS = new HashSet<>(List.of("active", "disabled"));
+    private static final Set<String> ALLOWED_USER_ROLES = new HashSet<>(List.of("admin", "user"));
+    private static final ObjectMapper PERMISSION_MAPPER = new ObjectMapper();
     
     private final UserMapper userMapper;
     private final BookmarkMapper bookmarkMapper;
@@ -113,7 +117,8 @@ public class UserService {
 
         notificationService.notifyUserRegister(user.getId(), user.getUsername());
 
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        // JWT role 固定为 user，避免与后台 admin 表角色冲突导致鉴权失败
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), "user");
         Map<String, Object> result = new HashMap<>();
         result.put("user", user);
         result.put("token", token);
@@ -138,7 +143,7 @@ public class UserService {
         
         user.setPassword(null);
         
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        String token = jwtUtil.generateToken(user.getId(), user.getUsername(), "user");
         Map<String, Object> result = new HashMap<>();
         result.put("user", user);
         result.put("token", token);
@@ -323,6 +328,69 @@ public class UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);
+    }
+
+    public User updateUserRole(Long id, String role) {
+        if (!ALLOWED_USER_ROLES.contains(role)) {
+            throw new BizException(ErrorCode.BAD_REQUEST, "role 仅支持 admin/user");
+        }
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        user.setRole(role);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        user.setPassword(null);
+        return user;
+    }
+
+    public User updateUserPermissions(Long id, String permissions) {
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new BizException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        user.setPermissions(permissions);
+        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateById(user);
+        user.setPassword(null);
+        return user;
+    }
+
+    /** 是否可进入管理后台：角色为 admin，或 permissions 中至少启用一个菜单 */
+    public boolean canAccessAdminPanel(User user) {
+        if (user == null) {
+            return false;
+        }
+        if ("admin".equals(user.getRole())) {
+            return true;
+        }
+        return hasEnabledMenuPermissions(user.getPermissions());
+    }
+
+    private boolean hasEnabledMenuPermissions(String permissionsJson) {
+        if (permissionsJson == null || permissionsJson.isBlank()) {
+            return false;
+        }
+        try {
+            JsonNode root = PERMISSION_MAPPER.readTree(permissionsJson);
+            if (root.isArray()) {
+                return root.size() > 0;
+            }
+            JsonNode menus = root.get("menus");
+            if (menus != null && menus.isObject()) {
+                var fields = menus.fields();
+                while (fields.hasNext()) {
+                    var entry = fields.next();
+                    if (entry.getValue().asBoolean(false)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // invalid json
+        }
+        return false;
     }
     
     public long getUserCount() {

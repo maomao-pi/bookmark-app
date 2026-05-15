@@ -58,6 +58,8 @@ export interface LoginResponse {
     avatar?: string;
     nickname?: string;
     phone?: string;
+    role?: string;
+    permissions?: string;
   };
 }
 
@@ -185,7 +187,16 @@ export const userApi = {
   },
 
   async getProfile() {
-    return request<{ id: number; username: string; email: string; avatar?: string; nickname?: string; phone?: string }>('GET', '/api/user/profile');
+    return request<{
+      id: number;
+      username: string;
+      email: string;
+      avatar?: string;
+      nickname?: string;
+      phone?: string;
+      role?: string;
+      permissions?: string;
+    }>('GET', '/api/user/profile');
   },
 
   async getBookmarks(): Promise<Bookmark[]> {

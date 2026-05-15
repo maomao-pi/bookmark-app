@@ -26,7 +26,9 @@ public class User {
     private String role;  // admin, user
     
     private String status;  // active, disabled
-    
+
+    private String permissions;  // JSON permissions config
+
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;

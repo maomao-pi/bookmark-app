@@ -115,4 +115,35 @@ public class UserController {
                 Map.of("username", userService.getUserById(id).getUsername()));
         return ApiResponse.success();
     }
+
+    @PutMapping("/{id}/role")
+    public ApiResponse<User> updateUserRole(@PathVariable @Positive(message = "id 必须大于 0") Long id,
+                                            @RequestBody Map<String, String> request,
+                                            Authentication authentication,
+                                            HttpServletRequest httpRequest) {
+        String role = request.get("role");
+        if (role == null || role.isBlank()) {
+            throw new RuntimeException("role 必填");
+        }
+        User updated = userService.updateUserRole(id, role);
+        Admin admin = (Admin) authentication.getPrincipal();
+        operationLogService.log(admin.getId(), "UPDATE_USER_ROLE", "user", id, httpRequest.getRemoteAddr(), "success",
+                Map.of("role", role));
+        return ApiResponse.success(updated);
+    }
+
+    @PutMapping("/{id}/permissions")
+    public ApiResponse<User> updateUserPermissions(@PathVariable @Positive(message = "id 必须大于 0") Long id,
+                                                   @RequestBody Map<String, String> request,
+                                                   Authentication authentication,
+                                                   HttpServletRequest httpRequest) {
+        String permissions = request.get("permissions");
+        if (permissions == null) {
+            throw new RuntimeException("permissions 必填");
+        }
+        User updated = userService.updateUserPermissions(id, permissions);
+        Admin admin = (Admin) authentication.getPrincipal();
+        operationLogService.log(admin.getId(), "UPDATE_USER_PERMISSIONS", "user", id, httpRequest.getRemoteAddr(), "success");
+        return ApiResponse.success(updated);
+    }
 }

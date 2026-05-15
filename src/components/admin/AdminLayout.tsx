@@ -30,6 +30,8 @@ export interface AdminLayoutProps {
   onCollapse: (collapsed: boolean) => void;
   permissions?: string[];
   isSuperAdmin?: boolean;
+  isUserAdmin?: boolean;  // 是否是用户管理员（免登录访问）
+  userPermissions?: string;  // 用户权限JSON字符串
   // 通知相关
   notifications: NotificationItem[];
   unreadCount: number;
@@ -111,6 +113,8 @@ export function AdminLayout({
   onCollapse,
   permissions = [],
   isSuperAdmin = false,
+  isUserAdmin = false,
+  userPermissions,
   notifications,
   unreadCount,
   notificationLoading,

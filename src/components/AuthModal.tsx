@@ -39,13 +39,23 @@ export function AuthModal({ open, initialMode = 'login', onClose, onSuccess }: A
     }
   }, [open, initialMode, loginForm]);
 
-  const saveSession = (user: { id: number | string; username: string; email: string; avatar?: string; nickname?: string }) => {
+  const saveSession = (user: {
+    id: number | string;
+    username: string;
+    email: string;
+    avatar?: string;
+    nickname?: string;
+    role?: string;
+    permissions?: string;
+  }) => {
     const session = {
       id: String(user.id),
       username: user.username,
       email: user.email,
       avatar: user.avatar || null,
       nickname: user.nickname || null,
+      role: user.role,
+      permissions: user.permissions ?? null,
       createdAt: new Date().toISOString(),
     };
     localStorage.setItem('userInfo', JSON.stringify(session));

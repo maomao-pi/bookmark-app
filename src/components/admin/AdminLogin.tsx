@@ -6,6 +6,8 @@ import './AdminLogin.css';
 interface AdminLoginProps {
   onLoginSuccess: (token: string, adminInfo: { username: string; avatar?: string; role: string; permissions?: string[] }) => void;
   baseUrl?: string;
+  /** 用户端免登失败等提示，仍可使用系统管理员账号登录 */
+  hintMessage?: string;
 }
 
 /* ---- 粒子画布 ---- */
@@ -152,7 +154,7 @@ function BrandIllustration() {
   );
 }
 
-export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080' }: AdminLoginProps) {
+export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080', hintMessage }: AdminLoginProps) {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (values: { username: string; password: string }) => {
@@ -209,8 +211,11 @@ export function AdminLogin({ onLoginSuccess, baseUrl = 'http://localhost:8080' }
             <div className="login-icon-wrap">
               <img src="/logo3.png" alt="logo" className="login-icon-img" />
             </div>
-            <h2 className="login-card-title">管理后台</h2>
-            <p className="login-card-desc">使用管理员账号登录系统</p>
+            <h2 className="login-card-title">系统管理登录</h2>
+            <p className="login-card-desc">使用 admin 表中的超级管理员或管理员账号登录</p>
+            {hintMessage && (
+              <p className="login-card-hint" role="alert">{hintMessage}</p>
+            )}
           </div>
 
           <Form
