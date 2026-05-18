@@ -69,7 +69,8 @@ function App() {
     if (!authLoading && isAuthenticated && currentPage === 'about') {
       setCurrentPage('home');
     }
-  }, [authLoading, isAuthenticated, currentPage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, isAuthenticated]);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const openLoginPage = (mode: 'login' | 'register' = 'login') => {
