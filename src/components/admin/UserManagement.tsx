@@ -61,6 +61,12 @@ const tabPermissionGroups: Record<string, { label: string; tabs: Record<string, 
   },
 };
 
+// 用户端功能权限配置选项
+const userFeatureOptions = [
+  { label: '导入书签', value: 'importBookmarks' },
+  { label: '批量操作', value: 'batchOperations' },
+];
+
 /** Checkbox.Group 需要 string[]，存储格式为 { key: true } */
 function flagsToCheckedKeys(flags: Record<string, boolean> | undefined): string[] {
   if (!flags || typeof flags !== 'object' || Array.isArray(flags)) return [];
@@ -109,12 +115,14 @@ function permissionsToFormValues(permissions: UserPermissions) {
   return {
     menus: flagsToCheckedKeys(permissions.menus as Record<string, boolean> | undefined),
     tabs: tabsForm,
+    userFeatures: flagsToCheckedKeys((permissions as any).userFeatures as Record<string, boolean> | undefined),
   };
 }
 
 function formValuesToPermissions(values: {
   menus?: string[];
   tabs?: Record<string, string[]>;
+  userFeatures?: string[];
 }): UserPermissions {
   const tabs: NonNullable<UserPermissions['tabs']> = {};
   if (values.tabs) {
@@ -127,7 +135,8 @@ function formValuesToPermissions(values: {
   return {
     menus: checkedKeysToFlags(values.menus),
     tabs,
-  };
+    userFeatures: checkedKeysToFlags(values.userFeatures),
+  } as UserPermissions;
 }
 
 export function UserManagement({ api }: UserManagementProps) {
@@ -608,6 +617,14 @@ export function UserManagement({ api }: UserManagementProps) {
                 ),
               }))}
             />
+          </div>
+
+          <Divider orientation="left">用户端功能权限</Divider>
+          <Form.Item name="userFeatures">
+            <Checkbox.Group options={userFeatureOptions} />
+          </Form.Item>
+          <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+            控制用户在客户端是否可以使用导入书签和批量操作功能
           </div>
         </Form>
       </Modal>

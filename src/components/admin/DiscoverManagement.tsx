@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, Button, Input, Tag, Modal, Typography, Popconfirm, message, Select, Form, Row, Col, Dropdown, Switch, Space, Upload, type MenuProps } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, ExportOutlined, MoreOutlined, PushpinOutlined, GlobalOutlined, RobotOutlined, UploadOutlined, SyncOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, ExportOutlined, MoreOutlined, PushpinOutlined, GlobalOutlined, RobotOutlined, UploadOutlined, SyncOutlined, ImportOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { DiscoverItem, CategoryItem, PageData } from '../../types/admin';
 import { useAI } from '../../hooks/useAI';
+import { ImportModal } from '../ImportModal';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -57,6 +58,9 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
   const lastTitleExtractKeyRef = useRef('');
   const lastAutoFilledTitleRef = useRef('');
   const lastUrlRef = useRef('');
+
+  // 导入相关状态
+  const [importModalVisible, setImportModalVisible] = useState(false);
 
   const isValidHttpUrl = (value: string): boolean => {
     try {
@@ -507,12 +511,92 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
       if (keyword) params.append('keyword', keyword);
       if (categoryFilter) params.append('categoryId', String(categoryFilter));
       if (statusFilter) params.append('status', statusFilter);
-      
+
       window.open(`${api['baseUrl']}/api/admin/discover/export?${params.toString()}`, '_blank');
       message.success('开始导出');
     } catch (error) {
       message.error('导出失败');
     }
+  };
+
+  const handleImportBookmarks = async (
+    items: Array<{ title: string; url: string; categoryName?: string }>,
+    _createCategories: boolean,
+    useAI: boolean,
+    onProgress?: (progress: { current: number; total: number; currentUrl?: string }) => void,
+    isCanceled?: () => boolean
+  ) => {
+    if (!api) return { importedCount: 0, createdCategoryIds: [], createdBookmarkIds: [] };
+
+    let successCount = 0;
+    const total = items.length;
+
+    for (let i = 0; i < items.length; i++) {
+      if (isCanceled?.()) break;
+      const item = items[i];
+      onProgress?.({ current: i + 1, total, currentUrl: item.url });
+
+      try {
+        let description = '';
+        let tags: string = '';
+        let favicon: string = '';
+
+        // 如果启用 AI 生成描述和标签
+        if (useAI) {
+          try {
+            const metadata = await extractMetadata(item.url);
+            if (metadata?.description) {
+              description = metadata.description;
+            }
+            if (metadata?.suggestedTags && metadata.suggestedTags.length > 0) {
+              tags = metadata.suggestedTags.join(',');
+            }
+          } catch (err) {
+            console.error('AI metadata extraction failed:', err);
+          }
+
+          // 生成 icon
+          try {
+            const iconUrl = await generateIcon(item.title);
+            if (iconUrl) {
+              favicon = iconUrl;
+            }
+          } catch (err) {
+            console.error('AI icon generation failed:', err);
+          }
+        }
+
+        // 如果没有 AI 生成的 favicon，使用 Google favicon
+        if (!favicon) {
+          try {
+            const domain = new URL(item.url).hostname;
+            favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+          } catch {
+            // ignore
+          }
+        }
+
+        await api.createDiscover({
+          title: item.title,
+          url: item.url,
+          description,
+          tags,
+          favicon,
+          categoryId: item.categoryName ? (categories.find(c => c.name === item.categoryName)?.id || undefined) : undefined,
+          status: 'visible',
+        });
+        successCount++;
+      } catch (err) {
+        console.error('Import discover failed:', err);
+      }
+    }
+
+    return { importedCount: successCount, createdCategoryIds: [], createdBookmarkIds: [] };
+  };
+
+  const handleUndoImport = async () => {
+    // 管理后台暂不支持撤销功能
+    message.info('管理后台暂不支持撤销功能');
   };
 
   const handleBatchDelete = async () => {
@@ -743,6 +827,11 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
               style={{ width: 100 }}
               allowClear
             />
+          </Col>
+          <Col flex="none">
+            <Button icon={<ImportOutlined />} onClick={() => setImportModalVisible(true)}>
+              导入
+            </Button>
           </Col>
           <Col flex="none">
             <Button icon={<ExportOutlined />} onClick={handleExport}>
@@ -1122,6 +1211,16 @@ export function DiscoverManagement({ api }: DiscoverManagementProps) {
           />
         </Form.Item>
       </Modal>
+
+      <ImportModal
+        open={importModalVisible}
+        onClose={() => setImportModalVisible(false)}
+        onImport={handleImportBookmarks}
+        onUndo={handleUndoImport}
+        existingUrls={new Set()}
+        aiEnabled={!!aiConfig?.enabled}
+        targetType="discover"
+      />
     </div>
   );
 }

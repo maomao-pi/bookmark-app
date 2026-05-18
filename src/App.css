@@ -534,6 +534,27 @@ html:not([data-theme="dark"]) .header-menu .ant-menu-item-selected {
   z-index: 1;
 }
 
+/* 批量选择工具栏 */
+.batch-select-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--accent-bg, #eff6ff);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .batch-select-bar {
+  background: var(--bg-tag, #2a2a2a);
+}
+
+.batch-select-count {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-secondary, #6b6560);
+}
+
 /* 右侧：AI推荐面板（固定宽度，粘性定位，左侧用分割线与收藏区分隔） */
 .home-ai-col {
   width: 480px;

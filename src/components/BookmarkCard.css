@@ -217,3 +217,14 @@
   }
 }
 
+/* 选中状态 */
+.bookmark-card-selected {
+  border-color: var(--accent, #3b82f6) !important;
+  background: #eff6ff !important;
+}
+
+[data-theme="dark"] .bookmark-card-selected {
+  background: #1e293b !important;
+  border-color: var(--accent, #3b82f6) !important;
+}
+

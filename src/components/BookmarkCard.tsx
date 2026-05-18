@@ -1,4 +1,4 @@
-import { Card, Tag, Button, Tooltip } from 'antd';
+import { Card, Tag, Button, Tooltip, Checkbox } from 'antd';
 import { EyeOutlined, EditOutlined, DeleteOutlined, PushpinFilled, LinkOutlined } from '@ant-design/icons';
 import type { Bookmark } from '../types';
 import { logger } from '../utils/logger';
@@ -12,6 +12,12 @@ interface BookmarkCardProps {
   onDelete: (bookmark: Bookmark) => void;
   /** 是否显示卡片底部的查看/编辑/删除操作，发现页传 false */
   showActions?: boolean;
+  /** 是否显示选择框 */
+  selectable?: boolean;
+  /** 是否选中 */
+  selected?: boolean;
+  /** 选中状态变化回调 */
+  onSelect?: (bookmark: Bookmark, selected: boolean) => void;
 }
 
 function getDomain(url: string) {
@@ -34,7 +40,7 @@ function getFaviconUrl(url: string): string {
   }
 }
 
-export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete, showActions = true }: BookmarkCardProps) {
+export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete, showActions = true, selectable, selected, onSelect }: BookmarkCardProps) {
   const { tags = [] } = bookmark;
   const favicon = bookmark.favicon || getFaviconUrl(bookmark.url);
 
@@ -47,13 +53,30 @@ export function BookmarkCard({ bookmark, categoryName, onView, onEdit, onDelete,
   const hiddenCount = displayTags.length - visibleTags.length;
 
   return (
-    <Card 
-      className="bookmark-card"
+    <Card
+      className={`bookmark-card ${selected ? 'bookmark-card-selected' : ''}`}
       hoverable
-      onClick={() => onView(bookmark)}
+      onClick={() => {
+        if (selectable && onSelect) {
+          onSelect(bookmark, !selected);
+        } else {
+          onView(bookmark);
+        }
+      }}
+      style={selectable ? { cursor: 'pointer' } : undefined}
     >
       <div className="bookmark-card-inner">
         <div className="bookmark-card-header">
+          {selectable && (
+            <Checkbox
+              checked={selected}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect?.(bookmark, !selected);
+              }}
+              style={{ marginRight: 8 }}
+            />
+          )}
           <div className="bookmark-avatar">
             {favicon ? (
               <img

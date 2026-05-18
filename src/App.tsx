@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
-import { ConfigProvider, theme as antTheme, Layout, Input, Button, Empty, message, Dropdown, Space, Menu, Tooltip, type MenuProps } from 'antd';
-import { SunOutlined, MoonOutlined, PlusOutlined, FolderOutlined, SortAscendingOutlined, LogoutOutlined, UserOutlined, BookOutlined, HomeOutlined, CompassOutlined, SettingOutlined, SettingFilled, TeamOutlined, ThunderboltOutlined, AppstoreOutlined, ReadOutlined, TagsOutlined, BarChartOutlined, RobotOutlined, GlobalOutlined, LinkOutlined, FileTextOutlined } from '@ant-design/icons';
+import { ConfigProvider, theme as antTheme, Layout, Input, Button, Empty, message, Dropdown, Space, Menu, Tooltip, Checkbox, notification, Progress, type MenuProps } from 'antd';
+import { SunOutlined, MoonOutlined, PlusOutlined, FolderOutlined, SortAscendingOutlined, LogoutOutlined, UserOutlined, BookOutlined, HomeOutlined, CompassOutlined, SettingOutlined, SettingFilled, TeamOutlined, ThunderboltOutlined, AppstoreOutlined, ReadOutlined, TagsOutlined, BarChartOutlined, RobotOutlined, GlobalOutlined, LinkOutlined, FileTextOutlined, ImportOutlined } from '@ant-design/icons';
 import { useAppData } from './hooks/useAppData';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
+import { AIService } from './services/aiService';
 
 import { lightTheme, darkTheme } from './theme';
 import { BookmarkCard } from './components/BookmarkCard';
@@ -11,6 +12,7 @@ import { BookmarkModal } from './components/BookmarkModal';
 import { AuthModal } from './components/AuthModal';
 import { DetailModal } from './components/DetailModal';
 import { CategoryManageModal } from './components/CategoryManageModal';
+import { ImportModal } from './components/ImportModal';
 import { ArticleModal } from './components/ArticleModal';
 import { ProfileModal } from './components/ProfileModal';
 import { AiNewsSection } from './components/AiNewsSection';
@@ -18,6 +20,7 @@ import type { Bookmark, BookmarkFormData, Article, ArticleFormData, Category } f
 import { UserAvatar } from './components/UserAvatar';
 import { getUserDisplayName, getUserSubtitle } from './utils/userAvatar';
 import { canAccessAdminBackend, openAdminPanelAsUser, openSystemAdminLogin } from './utils/adminAccess';
+import { logger } from './utils/logger';
 import './App.css';
 
 const { Header, Content } = Layout;
@@ -95,6 +98,142 @@ function App() {
   const [articleSaveSignal, setArticleSaveSignal] = useState(0);
 
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+
+  // 解析用户权限
+  const userPermissions = (() => {
+    if (!currentUser?.permissions) return { userFeatures: {} };
+    try {
+      return JSON.parse(currentUser.permissions);
+    } catch {
+      return { userFeatures: {} };
+    }
+  })();
+
+  const hasUserFeature = (feature: string) => {
+    return !!(userPermissions.userFeatures as Record<string, boolean>)?.[feature];
+  };
+
+  const canImportBookmarks = hasUserFeature('importBookmarks');
+  const canBatchOperations = hasUserFeature('batchOperations');
+
+  // 批量选择状态
+  const [selectedBookmarkIds, setSelectedBookmarkIds] = useState<Set<string>>(new Set());
+  const [batchSelectMode, setBatchSelectMode] = useState(false);
+
+  // 导入进度通知
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number; key?: string } | null>(null);
+
+  const showImportProgress = (current: number, total: number) => {
+    const key = 'import-progress';
+    notification.info({
+      key,
+      message: '正在导入书签',
+      description: (
+        <div>
+          <Progress percent={Math.round((current / total) * 100)} status="active" size="small" />
+          <div style={{ marginTop: 4, fontSize: 12, color: '#888' }}>
+            {current} / {total}
+          </div>
+        </div>
+      ),
+      duration: 0,
+      placement: 'topRight',
+    });
+    setImportProgress({ current, total, key });
+  };
+
+  const updateImportProgress = (current: number, total: number) => {
+    if (importProgress?.key) {
+      notification.info({
+        key: importProgress.key,
+        message: '正在导入书签',
+        description: (
+          <div>
+            <Progress percent={Math.round((current / total) * 100)} status="active" size="small" />
+            <div style={{ marginTop: 4, fontSize: 12, color: '#888' }}>
+              {current} / {total}
+            </div>
+          </div>
+        ),
+        duration: 0,
+      });
+      setImportProgress({ current, total, key: importProgress.key });
+    } else {
+      showImportProgress(current, total);
+    }
+  };
+
+  const hideImportProgress = () => {
+    if (importProgress?.key) {
+      notification.destroy(importProgress.key);
+      setImportProgress(null);
+    }
+  };
+
+  // 批量选择处理
+  const handleSelectBookmark = (bookmark: Bookmark, selected: boolean) => {
+    setSelectedBookmarkIds(prev => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(bookmark.id);
+      } else {
+        next.delete(bookmark.id);
+      }
+      return next;
+    });
+  };
+
+  // 全选/取消全选
+  const handleSelectAll = () => {
+    if (selectedBookmarkIds.size === filteredBookmarks.length) {
+      setSelectedBookmarkIds(new Set());
+    } else {
+      setSelectedBookmarkIds(new Set(filteredBookmarks.map(b => b.id)));
+    }
+  };
+
+  // 退出选择模式
+  const exitBatchSelectMode = () => {
+    setBatchSelectMode(false);
+    setSelectedBookmarkIds(new Set());
+  };
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedBookmarkIds.size === 0) return;
+
+    const confirmed = await import('antd').then(({ Modal }) =>
+      new Promise<boolean>((resolve) => {
+        Modal.confirm({
+          title: '确认删除',
+          content: `确定要删除选中的 ${selectedBookmarkIds.size} 个书签吗？此操作不可恢复。`,
+          okText: '删除',
+          okButtonProps: { danger: true },
+          cancelText: '取消',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      })
+    );
+
+    if (!confirmed) return;
+
+    let deletedCount = 0;
+    for (const id of selectedBookmarkIds) {
+      try {
+        await deleteBookmark(id);
+        deletedCount++;
+      } catch (err) {
+        logger.warn('handleBatchDelete', 'Failed to delete bookmark:', id, err);
+      }
+    }
+
+    message.success(`已删除 ${deletedCount} 个书签`);
+    refreshData();
+    exitBatchSelectMode();
+  };
 
   const filteredBookmarks = useMemo(() => getFilteredBookmarks(), [getFilteredBookmarks]);
   const filteredDiscoverBookmarks = useMemo(() => getFilteredDiscoverBookmarks(), [getFilteredDiscoverBookmarks]);
@@ -273,6 +412,128 @@ function App() {
   const handleLogout = () => {
     logout();
     message.success('已退出登录');
+  };
+
+  const handleImportBookmarks = async (
+    items: Array<{ title: string; url: string; categoryName?: string }>,
+    createCategories: boolean,
+    useAI: boolean,
+    onProgress?: (progress: { current: number; total: number; currentUrl?: string }) => void,
+    isCanceled?: () => boolean
+  ): Promise<{ importedCount: number; createdCategoryIds: string[]; createdBookmarkIds: string[] }> => {
+    // 如果需要创建分类，先创建所有分类
+    const categoryNameToId = new Map<string, string>();
+    const createdCategoryIds: string[] = [];
+    const createdBookmarkIds: string[] = [];
+
+    if (createCategories) {
+      // 收集所有需要创建的分类名称
+      const categoryNames = [...new Set(items.map(item => item.categoryName).filter(Boolean))] as string[];
+
+      for (const name of categoryNames) {
+        // 检查是否已存在同名分类
+        const existing = categories.find(c => c.name === name);
+        if (existing) {
+          categoryNameToId.set(name, existing.id);
+        } else {
+          // 创建新分类
+          try {
+            const created = await addCategory(name);
+            categoryNameToId.set(name, created.id);
+            createdCategoryIds.push(created.id);
+          } catch (err) {
+            logger.warn('handleImportBookmarks', 'Failed to create category:', name, err);
+          }
+        }
+      }
+    }
+
+    // 导入所有书签
+    let successCount = 0;
+    let failCount = 0;
+    const total = items.length;
+
+    for (let i = 0; i < items.length; i++) {
+      // 检查是否已取消
+      if (isCanceled?.()) {
+        break;
+      }
+
+      const item = items[i];
+
+      // 报告进度
+      onProgress?.({ current: i + 1, total, currentUrl: item.url });
+
+      try {
+        const categoryId = item.categoryName ? categoryNameToId.get(item.categoryName) || null : null;
+
+        // 如果启用 AI 生成描述，先提取元数据
+        let description = '';
+        let tags: string[] = [];
+
+        if (useAI) {
+          try {
+            const metadataResult = await AIService.extractURLMetadata(item.url);
+            if (metadataResult.success && metadataResult.data) {
+              description = metadataResult.data.description || '';
+              tags = metadataResult.data.suggestedTags || [];
+            }
+          } catch (aiErr) {
+            logger.warn('handleImportBookmarks', 'AI extraction failed for:', item.url, aiErr);
+            // AI 提取失败不影响导入，使用空描述
+          }
+        }
+
+        const bookmark = await addBookmark({
+          title: item.title,
+          url: item.url,
+          description,
+          categoryId,
+          tags
+        });
+        if (bookmark) {
+          createdBookmarkIds.push(bookmark.id);
+        }
+        successCount++;
+      } catch (err) {
+        failCount++;
+        logger.warn('handleImportBookmarks', 'Failed to import bookmark:', item.url, err);
+      }
+    }
+
+    if (failCount > 0) {
+      message.warning(`导入完成：${successCount} 个成功，${failCount} 个失败`);
+    }
+
+    refreshData();
+
+    return {
+      importedCount: successCount,
+      createdCategoryIds,
+      createdBookmarkIds
+    };
+  };
+
+  const handleUndoImport = async (result: { importedCount: number; createdCategoryIds: string[]; createdBookmarkIds: string[] }) => {
+    // 删除导入的书签
+    for (const bookmarkId of result.createdBookmarkIds) {
+      try {
+        await deleteBookmark(bookmarkId);
+      } catch (err) {
+        logger.warn('handleUndoImport', 'Failed to delete bookmark:', bookmarkId, err);
+      }
+    }
+
+    // 删除新建的分类（如果存在的话）
+    for (const categoryId of result.createdCategoryIds) {
+      try {
+        await deleteCategory(categoryId);
+      } catch (err) {
+        logger.warn('handleUndoImport', 'Failed to delete category:', categoryId, err);
+      }
+    }
+
+    refreshData();
   };
 
   const sortMenuItems = sortOptions.map(opt => ({
@@ -630,9 +891,50 @@ function App() {
             >
               添加收藏
             </Button>
+            <Tooltip title="从浏览器书签导入">
+              <Button
+                icon={<ImportOutlined />}
+                onClick={() => setImportModalOpen(true)}
+                disabled={!canImportBookmarks}
+              />
+            </Tooltip>
+            {filteredBookmarks.length > 0 && canBatchOperations && (
+              <Tooltip title="批量选择">
+                <Button
+                  icon={<AppstoreOutlined />}
+                  onClick={() => setBatchSelectMode(true)}
+                />
+              </Tooltip>
+            )}
           </div>
         </div>
         <div className="home-bookmarks-content">
+          {batchSelectMode && filteredBookmarks.length > 0 && (
+            <div className="batch-select-bar">
+              <Checkbox
+                checked={selectedBookmarkIds.size === filteredBookmarks.length && filteredBookmarks.length > 0}
+                indeterminate={selectedBookmarkIds.size > 0 && selectedBookmarkIds.size < filteredBookmarks.length}
+                onChange={handleSelectAll}
+              >
+                全选
+              </Checkbox>
+              <span className="batch-select-count">
+                已选择 {selectedBookmarkIds.size} / {filteredBookmarks.length}
+              </span>
+              <Button
+                type="primary"
+                danger
+                size="small"
+                disabled={selectedBookmarkIds.size === 0}
+                onClick={handleBatchDelete}
+              >
+                删除选中
+              </Button>
+              <Button size="small" onClick={exitBatchSelectMode}>
+                取消
+              </Button>
+            </div>
+          )}
           {filteredBookmarks.length > 0 ? (
             <div className="bookmarks-waterfall">
               {filteredBookmarks.map(bookmark => (
@@ -643,6 +945,9 @@ function App() {
                   onView={handleViewDetail}
                   onEdit={handleEditBookmark}
                   onDelete={handleDeleteBookmark}
+                  selectable={batchSelectMode}
+                  selected={selectedBookmarkIds.has(bookmark.id)}
+                  onSelect={handleSelectBookmark}
                 />
               ))}
             </div>
@@ -959,6 +1264,23 @@ function App() {
             patchSession(updated);
             refreshData();
           }}
+        />
+
+        <ImportModal
+          open={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          onImport={async (items, createCategories, useAI, onProgress, isCanceled) => {
+            showImportProgress(0, items.length);
+            const result = await handleImportBookmarks(items, createCategories, useAI, (progress) => {
+              updateImportProgress(progress.current, progress.total);
+              onProgress?.(progress);
+            }, isCanceled);
+            hideImportProgress();
+            return result;
+          }}
+          onUndo={handleUndoImport}
+          existingUrls={new Set(bookmarks.map(b => b.url))}
+          aiEnabled={!!AIService.getConfig()?.enabled}
         />
 
       </Layout>

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Table, Button, Input, Tag, Modal, Typography, message, Select, Form, Row, Col, Dropdown, type MenuProps } from 'antd';
-import { DeleteOutlined, ExportOutlined, EditOutlined, EyeOutlined, MoreOutlined } from '@ant-design/icons';
+import { DeleteOutlined, ExportOutlined, EditOutlined, EyeOutlined, MoreOutlined, ImportOutlined } from '@ant-design/icons';
 import { AdminApi } from '../../services/adminApi';
 import type { BookmarkItem, CategoryItem, PageData, AppUser, UserDetailResponse } from '../../types/admin';
+import { ImportModal } from '../ImportModal';
+import { useAI } from '../../hooks/useAI';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -46,6 +48,10 @@ export function BookmarkManagement({ api }: BookmarkManagementProps) {
   const [form] = Form.useForm();
   const lastUrlRef = useRef('');
   const userMapRef = useRef<Record<number, AppUser>>({});
+
+  // 导入相关状态
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const { config: aiConfig, extractMetadata, generateIcon } = useAI();
 
   useEffect(() => {
     userMapRef.current = userMap;
@@ -220,6 +226,86 @@ export function BookmarkManagement({ api }: BookmarkManagementProps) {
     }
   };
 
+  const handleImportBookmarks = async (
+    items: Array<{ title: string; url: string; categoryName?: string }>,
+    _createCategories: boolean,
+    useAI: boolean,
+    onProgress?: (progress: { current: number; total: number; currentUrl?: string }) => void,
+    isCanceled?: () => boolean
+  ) => {
+    if (!api) return { importedCount: 0, createdCategoryIds: [], createdBookmarkIds: [] };
+
+    let successCount = 0;
+    const total = items.length;
+
+    for (let i = 0; i < items.length; i++) {
+      if (isCanceled?.()) break;
+      const item = items[i];
+      onProgress?.({ current: i + 1, total, currentUrl: item.url });
+
+      try {
+        let description = '';
+        let tags: string = '';
+        let favicon: string = '';
+
+        // 如果启用 AI 生成描述和标签
+        if (useAI) {
+          try {
+            const metadata = await extractMetadata(item.url);
+            if (metadata?.description) {
+              description = metadata.description;
+            }
+            if (metadata?.suggestedTags && metadata.suggestedTags.length > 0) {
+              tags = metadata.suggestedTags.join(',');
+            }
+          } catch (err) {
+            console.error('AI metadata extraction failed:', err);
+          }
+
+          // 生成 icon
+          try {
+            const iconUrl = await generateIcon(item.title);
+            if (iconUrl) {
+              favicon = iconUrl;
+            }
+          } catch (err) {
+            console.error('AI icon generation failed:', err);
+          }
+        }
+
+        // 如果没有 AI 生成的 favicon，使用 Google favicon
+        if (!favicon) {
+          try {
+            const domain = new URL(item.url).hostname;
+            favicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+          } catch {
+            // ignore
+          }
+        }
+
+        await api.createBookmark({
+          title: item.title,
+          url: item.url,
+          description,
+          tags,
+          favicon,
+          categoryId: item.categoryName ? (categories.find(c => c.name === item.categoryName)?.id || undefined) : undefined,
+          source: 'admin',
+        });
+        successCount++;
+      } catch (err) {
+        console.error('Import bookmark failed:', err);
+      }
+    }
+
+    return { importedCount: successCount, createdCategoryIds: [], createdBookmarkIds: [] };
+  };
+
+  const handleUndoImport = async () => {
+    // 管理后台暂不支持撤销功能
+    message.info('管理后台暂不支持撤销功能');
+  };
+
   const categoryOptions = categories.map(c => ({ label: c.name, value: c.id }));
 
   const columns = [
@@ -388,6 +474,11 @@ export function BookmarkManagement({ api }: BookmarkManagementProps) {
             />
           </Col>
           <Col>
+            <Button icon={<ImportOutlined />} onClick={() => setImportModalVisible(true)}>
+              导入
+            </Button>
+          </Col>
+          <Col>
             <Button icon={<ExportOutlined />} onClick={handleExport}>
               导出
             </Button>
@@ -551,6 +642,16 @@ export function BookmarkManagement({ api }: BookmarkManagementProps) {
           </div>
         )}
       </Modal>
+
+      <ImportModal
+        open={importModalVisible}
+        onClose={() => setImportModalVisible(false)}
+        onImport={handleImportBookmarks}
+        onUndo={handleUndoImport}
+        existingUrls={new Set()}
+        aiEnabled={!!aiConfig?.enabled}
+        targetType="bookmarks"
+      />
     </div>
   );
 }

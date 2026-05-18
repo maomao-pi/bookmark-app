@@ -1,0 +1,181 @@
+/* ImportModal 复选框样式优化 */
+.import-modal-options {
+  margin-bottom: 16px;
+}
+
+.import-modal-option-card {
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: #fafafa;
+}
+
+[data-theme="dark"] .import-modal-option-card {
+  background: #1a1a1a;
+  border-color: #303030;
+}
+
+.import-modal-option-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.import-modal-option-item:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.import-modal-option-item .ant-checkbox-wrapper {
+  margin-left: 8px;
+}
+
+.import-modal-option-label {
+  margin-left: 8px;
+  font-size: 14px;
+  color: #333;
+}
+
+[data-theme="dark"] .import-modal-option-label {
+  color: #e5e5e5;
+}
+
+.import-modal-section-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+[data-theme="dark"] .import-modal-section-title {
+  color: #999;
+}
+
+/* 导入模式选择器样式 */
+.import-mode-selector {
+  margin-top: 8px;
+}
+
+.import-mode-selector .ant-radio-button-wrapper {
+  border-radius: 6px;
+  margin-right: 8px;
+}
+
+.import-mode-selector .ant-radio-button-wrapper:first-child {
+  border-radius: 6px;
+}
+
+.import-mode-selector .ant-radio-button-wrapper:last-child {
+  border-radius: 6px;
+}
+
+/* Tree 树形选择器样式 */
+.import-modal-tree {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+[data-theme="dark"] .import-modal-tree {
+  background: #1a1a1a;
+  border-color: #303030;
+}
+
+.import-modal-tree .ant-tree-node-content-wrapper {
+  border-radius: 4px;
+  padding: 4px 8px;
+  transition: all 0.2s ease;
+}
+
+.import-modal-tree .ant-tree-node-content-wrapper:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.import-modal-tree .ant-tree-checkbox-checked .ant-tree-checkbox-inner,
+.import-modal-tree .ant-tree-checkbox-indeterminate .ant-tree-checkbox-inner {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.import-modal-tree .ant-tree-title {
+  font-size: 13px;
+}
+
+/* 复选框样式优化 */
+.import-modal-option-item.ant-checkbox-wrapper:hover .import-modal-option-label,
+.import-modal-option-item:hover .import-modal-option-label {
+  color: #3b82f6;
+}
+
+/* 文件夹图标样式 */
+.import-modal-folder-icon {
+  color: #faad14;
+  margin-right: 6px;
+}
+
+/* 文件图标样式 */
+.import-modal-file-icon {
+  color: #1890ff;
+  margin-right: 6px;
+}
+
+/* 重复标签样式 */
+.import-modal-duplicate-tag {
+  font-size: 11px;
+  padding: 0 6px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 9px;
+  background: #fff2e8;
+  color: #ff4d4f;
+  margin-left: 8px;
+}
+
+/* 选中数量统计 */
+.import-modal-selection-count {
+  font-size: 12px;
+  color: #888;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+[data-theme="dark"] .import-modal-selection-count {
+  background: #262626;
+  color: #999;
+}
+
+/* 进度条容器 */
+.import-modal-progress-container {
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f7ff 0%, #e8f4ff 100%);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .import-modal-progress-container {
+  background: linear-gradient(135deg, #1a2a3a 0%, #1a2535 100%);
+}
+
+.import-modal-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.import-modal-progress-url {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 300px;
+}
